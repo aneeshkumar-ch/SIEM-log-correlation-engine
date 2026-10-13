@@ -106,8 +106,8 @@ def verify_saved_objects_and_data() -> bool:
             all_ok = False
 
     # Ingest temporary test data to verify all panels without touching live indices
-    temp_events_idx = "test-temp-kibana-events"
-    temp_alerts_idx = "test-temp-kibana-alerts"
+    temp_events_idx = "security-events-temp-render"
+    temp_alerts_idx = "security-alerts-temp-render"
 
     print("\n" + "=" * 70)
     print("  PANEL DATA RETURN VERIFICATION (Using Temporary Test Indices)")
@@ -148,6 +148,25 @@ def verify_saved_objects_and_data() -> bool:
 
         # Correlate into temporary alerts index
         correlate.run_correlation(es, events_index=temp_events_idx, alerts_index=temp_alerts_idx)
+
+        # Include a low severity alert to verify all 4 severity series colors
+        import datetime
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        low_alert = {
+            "alert_id": "temp-test-low-alert",
+            "rule_name": "Low Severity Informational Notice",
+            "severity": "low",
+            "first_seen": now_iso,
+            "last_seen": now_iso,
+            "user": "analyst",
+            "src_ip": "10.0.0.99",
+            "host": ["WORKSTATION-01"],
+            "event_count": 1,
+            "summary": "Informational low severity test alert",
+            "mitre_technique": "T1059",
+            "contributing_events": []
+        }
+        es.index(index=temp_alerts_idx, document=low_alert, refresh=True)
 
         # Panel 1: Alerts by Severity Over Time
         res_sev = es.search(

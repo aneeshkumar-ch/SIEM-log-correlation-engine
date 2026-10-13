@@ -127,6 +127,71 @@ objects.append({
     "references": []
 })
 
+SEVERITY_COLOR_MAPPING = {
+    "assignments": [
+        {
+            "rule": {
+                "type": "matchExactly",
+                "values": ["critical", "Critical"]
+            },
+            "color": {
+                "type": "colorCode",
+                "colorCode": "#BD271E"
+            },
+            "touched": True
+        },
+        {
+            "rule": {
+                "type": "matchExactly",
+                "values": ["high", "High"]
+            },
+            "color": {
+                "type": "colorCode",
+                "colorCode": "#F5A700"
+            },
+            "touched": True
+        },
+        {
+            "rule": {
+                "type": "matchExactly",
+                "values": ["medium", "Medium"]
+            },
+            "color": {
+                "type": "colorCode",
+                "colorCode": "#FEC514"
+            },
+            "touched": True
+        },
+        {
+            "rule": {
+                "type": "matchExactly",
+                "values": ["low", "Low"]
+            },
+            "color": {
+                "type": "colorCode",
+                "colorCode": "#54B399"
+            },
+            "touched": True
+        }
+    ],
+    "specialAssignments": [
+        {
+            "rule": {
+                "type": "other"
+            },
+            "color": {
+                "type": "loop"
+            },
+            "touched": False
+        }
+    ],
+    "paletteId": "eui_amsterdam_color_blind",
+    "colorMode": {
+        "type": "categorical"
+    }
+}
+
+
 # 3. Lens: Alerts by Severity Over Time
 objects.append({
     "id": "alerts-by-severity",
@@ -169,7 +234,8 @@ objects.append({
                         "seriesType": "bar_stacked",
                         "xAccessor": "col_date",
                         "accessors": ["col_count"],
-                        "splitAccessor": "col_severity"
+                        "splitAccessor": "col_severity",
+                        "colorMapping": SEVERITY_COLOR_MAPPING
                     }
                 ]
             }
