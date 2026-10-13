@@ -72,9 +72,12 @@ def verify_saved_objects_and_data() -> bool:
         ("index-pattern", "security-alerts-dataview", "Data View: security-alerts*"),
         ("index-pattern", "security-events-dataview", "Data View: security-events*"),
         ("lens", "alerts-by-severity", "Lens: Alerts by Severity Over Time"),
-        ("lens", "top-source-ips", "Lens: Top Source IPs"),
-        ("lens", "suspicious-execution-hosts", "Lens: Hosts with Post-Logon Suspicious Execution"),
+        ("lens", "top-source-ips", "Lens Data Table: Top Source IPs"),
+        ("lens", "suspicious-execution-hosts", "Lens Data Table: Hosts with Post-Logon Suspicious Execution"),
         ("lens", "alerts-by-rule", "Lens: Alerts by Detection Rule"),
+        ("lens", "alerts-by-user", "Lens: Alerts by User"),
+        ("lens", "alerts-by-host", "Lens: Alerts by Host"),
+        ("lens", "recent-alerts-table", "Lens Data Table: Recent Security Alerts"),
         ("lens", "timeline-events-over-time", "Lens: Security Events Over Time"),
         ("lens", "events-by-source", "Lens: Events by Log Source"),
         ("search", "events-search", "Saved Search: Security Events Raw Search"),
@@ -102,57 +105,168 @@ def verify_saved_objects_and_data() -> bool:
             print(f"  [ERROR] {label:<50} -> {e}")
             all_ok = False
 
-    # Verify panel datastore results
+    # Ingest temporary test data to verify all panels without touching live indices
+    temp_events_idx = "test-temp-kibana-events"
+    temp_alerts_idx = "test-temp-kibana-alerts"
+
     print("\n" + "=" * 70)
-    print("  PANEL DATA RETURN VERIFICATION")
+    print("  PANEL DATA RETURN VERIFICATION (Using Temporary Test Indices)")
+    print(f"  Target: {temp_events_idx} & {temp_alerts_idx}")
     print("=" * 70)
 
     es = get_es_client()
+    import normalizer
+    import correlate
+    from storage import initialize_indices, bulk_index_events
+
     try:
-        # Panel 1: Alerts by Severity
+        # 1. Clean and initialize temp indices
+        es.indices.delete(index=[temp_events_idx, temp_alerts_idx], ignore_unavailable=True)
+        initialize_indices(es, events_index=temp_events_idx, alerts_index=temp_alerts_idx)
+
+        # 2. Ingest test fixtures
+        fixtures_dir = Path(__file__).resolve().parent / "tests" / "fixtures"
+        for fix_file, src_type in [
+            ("rule1_brute_force_fail.log", "linux_auth"),
+            ("rule2_brute_force_success.log", "linux_auth"),
+            ("rule3_post_logon_powershell.csv", "windows_security"),
+            ("benign_activity.csv", "windows_security")
+        ]:
+            p = fixtures_dir / fix_file
+            if p.exists():
+                evs, _ = normalizer.normalize_content(p.read_text(encoding="utf-8"), src_type)
+                bulk_index_events(es, evs, temp_events_idx)
+
+        # Ingest multi-source sample dataset
+        import sample_log_generator
+        sample_files = sample_log_generator.generate_sample_logs()
+        for s_type, p_str in [("windows_sysmon", sample_files["windows"]), ("linux_auditd", sample_files["linux"]), ("network_firewall", sample_files["network"])]:
+            p = Path(p_str)
+            if p.exists():
+                evs, _ = normalizer.normalize_content(p.read_text(encoding="utf-8"), s_type)
+                bulk_index_events(es, evs, temp_events_idx)
+
+        # Correlate into temporary alerts index
+        correlate.run_correlation(es, events_index=temp_events_idx, alerts_index=temp_alerts_idx)
+
+        # Panel 1: Alerts by Severity Over Time
         res_sev = es.search(
-            index=config.INDEX_ALERTS,
+            index=temp_alerts_idx,
             query={"match_all": {}},
             size=0,
             aggs={"severities": {"terms": {"field": "severity"}}}
         )
         sev_buckets = res_sev.get("aggregations", {}).get("severities", {}).get("buckets", [])
         total_alerts = res_sev.get("hits", {}).get("total", {}).get("value", 0)
-        print(f"  [Panel 1: Alerts by Severity Over Time] Total: {total_alerts} alerts across {len(sev_buckets)} severity levels.")
+        print(f"\n  [Panel 1: Alerts by Severity Over Time] Total: {total_alerts} alert(s)")
         for b in sev_buckets:
             print(f"           - {b['key'].upper():<10}: {b['doc_count']} alert(s)")
 
-        # Panel 2: Top Source IPs
+        # Panel 2: Top Source IPs (Data Table)
         res_ips = es.search(
-            index=config.INDEX_ALERTS,
+            index=temp_alerts_idx,
             query={"match_all": {}},
             size=0,
             aggs={"top_ips": {"terms": {"field": "src_ip", "size": 10}}}
         )
         ip_buckets = res_ips.get("aggregations", {}).get("top_ips", {}).get("buckets", [])
-        print(f"  [Panel 2: Top Source IPs] Found {len(ip_buckets)} distinct source IP(s):")
+        print(f"\n  [Panel 2: Top Source IPs (Data Table)] {len(ip_buckets)} row(s):")
         for b in ip_buckets:
-            print(f"           - {b['key']:<20}: {b['doc_count']} alert(s)")
+            print(f"           - IP: {b['key']:<18} | Count: {b['doc_count']}")
 
-        # Panel 3: Suspicious Execution Hosts
+        # Panel 3: Hosts with Post-Logon Suspicious Execution (Data Table)
         res_hosts = es.search(
-            index=config.INDEX_ALERTS,
+            index=temp_alerts_idx,
             query={"term": {"rule_name": "Post-Logon Suspicious Execution"}},
             size=10
         )
         hits_hosts = res_hosts.get("hits", {}).get("hits", [])
-        print(f"  [Panel 3: Hosts with Post-Logon Suspicious Execution] Hits: {len(hits_hosts)}")
+        print(f"\n  [Panel 3: Hosts with Post-Logon Suspicious Execution (Data Table)] {len(hits_hosts)} hit(s):")
         for h in hits_hosts:
             src = h["_source"]
-            print(f"           - Host: {src.get('host')} | User: {src.get('user')} | Process: PowerShell | Severity: {src.get('severity')}")
+            print(f"           - Host: {src.get('host'):<15} | User: {src.get('user'):<10} | Severity: {src.get('severity')}")
 
-        # Events telemetry check
-        total_events = es.count(index=config.INDEX_EVENTS)["count"]
-        print(f"\n  [Security Events Telemetry] Total indexed events in '{config.INDEX_EVENTS}': {total_events}")
+        # Panel 4: Alerts by Detection Rule
+        res_rules = es.search(
+            index=temp_alerts_idx,
+            query={"match_all": {}},
+            size=0,
+            aggs={"rules": {"terms": {"field": "rule_name", "size": 10}}}
+        )
+        rule_buckets = res_rules.get("aggregations", {}).get("rules", {}).get("buckets", [])
+        print(f"\n  [Panel 4: Alerts by Detection Rule] {len(rule_buckets)} active rule(s):")
+        for b in rule_buckets:
+            print(f"           - {b['key']:<34}: {b['doc_count']} alert(s)")
+
+        # Panel 5: Alerts by User
+        res_users = es.search(
+            index=temp_alerts_idx,
+            query={"match_all": {}},
+            size=0,
+            aggs={"users": {"terms": {"field": "user", "size": 10}}}
+        )
+        user_buckets = res_users.get("aggregations", {}).get("users", {}).get("buckets", [])
+        print(f"\n  [Panel 5: Alerts by User] {len(user_buckets)} user(s):")
+        for b in user_buckets:
+            print(f"           - User: {b['key']:<18} | Alerts: {b['doc_count']}")
+
+        # Panel 6: Alerts by Host
+        res_host_dist = es.search(
+            index=temp_alerts_idx,
+            query={"match_all": {}},
+            size=0,
+            aggs={"hosts": {"terms": {"field": "host", "size": 10}}}
+        )
+        host_buckets = res_host_dist.get("aggregations", {}).get("hosts", {}).get("buckets", [])
+        print(f"\n  [Panel 6: Alerts by Host] {len(host_buckets)} host(s):")
+        for b in host_buckets:
+            print(f"           - Host: {b['key']:<22} | Alerts: {b['doc_count']}")
+
+        # Panel 7: Recent Alerts Table (Data Table)
+        res_recent = es.search(
+            index=temp_alerts_idx,
+            query={"match_all": {}},
+            size=5,
+            sort=[{"first_seen": {"order": "desc"}}]
+        )
+        recent_hits = res_recent.get("hits", {}).get("hits", [])
+        print(f"\n  [Panel 7: Recent Security Alerts Table (Data Table)] Top {len(recent_hits)} recent entries:")
+        for h in recent_hits:
+            s = h["_source"]
+            print(f"           - {s.get('first_seen')} | {s.get('rule_name'):<30} | {s.get('severity'):<8} | {str(s.get('user')):<10} | {str(s.get('src_ip')):<15} | {s.get('host')}")
+
+        # Panel 8: Security Events Over Time
+        total_evs = es.count(index=temp_events_idx)["count"]
+        print(f"\n  [Panel 8: Security Events Over Time] Total events indexed: {total_evs}")
+
+        # Panel 9: Events by Log Source
+        res_src = es.search(
+            index=temp_events_idx,
+            query={"match_all": {}},
+            size=0,
+            aggs={"sources": {"terms": {"field": "source"}}}
+        )
+        src_buckets = res_src.get("aggregations", {}).get("sources", {}).get("buckets", [])
+        print(f"\n  [Panel 9: Events by Log Source] Distribution:")
+        for b in src_buckets:
+            print(f"           - Source: {b['key']:<12} | Events: {b['doc_count']}")
+
+        # Panel 10: Events Raw Search (Discover Search)
+        res_search = es.search(index=temp_events_idx, query={"match_all": {}}, size=3)
+        print(f"\n  [Panel 10: Events Raw Search (Discover)] Matches: {res_search.get('hits', {}).get('total', {}).get('value', 0)} total docs")
 
     except Exception as e:
-        print(f"  [!] Datastore query error: {e}")
+        print(f"  [!] Panel query error: {e}")
         all_ok = False
+    finally:
+        # Clean up temporary test data
+        es.indices.delete(index=[temp_events_idx, temp_alerts_idx], ignore_unavailable=True)
+        print(f"\n[+] Cleaned up temporary test indices ({temp_events_idx}, {temp_alerts_idx}).")
+
+    # Confirm live indices remain 0
+    c_live_events = es.count(index=config.INDEX_EVENTS)["count"]
+    c_live_alerts = es.count(index=config.INDEX_ALERTS)["count"]
+    print(f"[+] Live index verification: '{config.INDEX_EVENTS}' count={c_live_events}, '{config.INDEX_ALERTS}' count={c_live_alerts}")
 
     print("=" * 70)
     print(f"  Kibana Dashboards are live at:")
@@ -175,3 +289,4 @@ if __name__ == "__main__":
     else:
         print(f"\nKibana is not currently responding at {KIBANA_URL}.")
         sys.exit(1)
+

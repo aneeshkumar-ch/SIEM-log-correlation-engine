@@ -81,7 +81,6 @@ BLOCKED_BURST_WINDOW_MINUTES = int(os.getenv("BLOCKED_BURST_WINDOW_MINUTES", "5"
 # Scenario 5: Additional Security Event (Sensitive File Access & Lateral Movement)
 SENSITIVE_FILES = [
     "/etc/shadow",
-    "/etc/passwd",
     "/etc/sudoers",
     "SAM",
     "ntds.dit"

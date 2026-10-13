@@ -85,11 +85,11 @@ The correlation engine executes sliding-window evaluations across chronologicall
 * **Severity:** High.
 
 ### Scenario 4: Network-Based Suspicious Activity (MITRE ATT&CK: T1046)
-* **Pattern 4A (Port Scanning):** A single external `source_ip` hitting $\ge 5$ distinct destination ports or destination hosts within a 5-minute sliding window ($300\text{s}$). Severity: High.
+* **Pattern 4A (Port Scanning):** A single source IP probing $\ge 5$ distinct destination ports on a single destination host within a 5-minute sliding window ($300\text{s}$). Severity: High.
 * **Pattern 4B (Blocked Traffic Burst):** A single source IP generating $\ge 5$ blocked packet events within 5 minutes. Severity: Medium.
 
 ### Scenario 5: Additional Security Event (MITRE ATT&CK: T1003.008 / T1021)
-* **Pattern 5A (Sensitive File Access):** Auditd or Sysmon events accessing sensitive credential storage (e.g. `/etc/shadow`, `/etc/passwd`, `/etc/sudoers`, `SAM`, `ntds.dit`). Severity: High.
+* **Pattern 5A (Sensitive File Access):** Auditd or Sysmon events accessing sensitive credential storage (e.g. `/etc/shadow`, `/etc/sudoers`, `SAM`, `ntds.dit`). Severity: High. (Note: `/etc/passwd` is excluded from alerting as it is benignly read by normal userland processes).
 * **Pattern 5B (Suspected Lateral Movement):** The same non-admin user logging on to $\ge 2$ distinct internal hosts within a 10-minute sliding window ($600\text{s}$). Severity: High.
 
 ---
@@ -111,12 +111,12 @@ The engine applies explicit tuning decisions for each of the 5 detection rules t
    * *False-Positive Tuning Decision:* Standard administrative accounts and routine Windows core services generate high volumes of privilege assignments during normal operating boot and schedule runs. The rule verifies whether the account belongs to `ADMIN_ACCOUNTS`; routine administrative logons are filtered, focusing alerts strictly on non-admin users or unapproved service accounts assuming elevated privileges.
 
 4. **Rule 4: Network-Based Suspicious Activity (T1046)**
-   * *Threshold:* $\ge 5$ distinct destination ports/hosts or $\ge 5$ blocked connection attempts within a 5-minute sliding window ($300\text{s}$).
-   * *False-Positive Tuning Decision:* Web browsers and microservices routinely open multiple parallel outbound connections to web servers on standard ports (80/443). Requiring $\ge 5$ *distinct* destination ports or blocked states within 5 minutes eliminates false positives from routine HTTP browsing, while `ALLOWLIST_IPS` excludes authorized corporate vulnerability scanners.
+   * *Threshold:* A single source IP probing $\ge 5$ distinct destination ports on a single destination host, or generating $\ge 5$ blocked connection attempts within a 5-minute sliding window ($300\text{s}$).
+   * *False-Positive Tuning Decision:* Clients and web browsers routinely open multiple parallel outbound connections to distinct web servers on standard ports (80/443). By evaluating distinct destination ports on a per-destination-host basis (`ports_per_dest[dest] >= 5`) rather than aggregating across multiple hosts, benign web browsing across multiple sites is never misclassified as a port scan. Bursts of blocked connections are also tracked to detect brute reconnaissance.
 
 5. **Rule 5: Additional Security Events — Sensitive Files & Lateral Movement (T1003.008 / T1021)**
-   * *Threshold:* Access to credential files (`/etc/shadow`, `/etc/passwd`, `SAM`, `ntds.dit`) or $\ge 2$ distinct target hosts within 10 minutes ($600\text{s}$).
-   * *False-Positive Tuning Decision:* System authentication daemons (`sshd`, `pam`) legitimately access authentication files during normal user login operations. The rule isolates non-root and userland syscall invocations (e.g. `cat`, `python`, `cp`) targeting shadow files. For lateral movement, requiring $\ge 2$ *distinct* hosts prevents false positives from multiple concurrent sessions or reconnects to the same machine.
+   * *Threshold:* Access to credential files (`/etc/shadow`, `SAM`, `ntds.dit`) or $\ge 2$ distinct target hosts within 10 minutes ($600\text{s}$).
+   * *False-Positive Tuning Decision:* Standard system processes and user utilities (e.g. `ls`, `id`, `finger`, `bash`) legitimately and continuously read `/etc/passwd` to resolve user names and group IDs. Therefore, `/etc/passwd` was explicitly excluded from the sensitive files detection list to avoid severe alert fatigue, restricting file access alerts strictly to actual credential repositories (`/etc/shadow`, `SAM`, `ntds.dit`, `/etc/sudoers`). For lateral movement, requiring $\ge 2$ distinct hosts prevents false positives from multiple concurrent sessions or reconnects to the same machine.
 
 6. **Anti-Flooding Alert Deduplication & Idempotence**
    * Alerts use deterministic hashing on composite tuples:
@@ -145,16 +145,17 @@ The web portal at `/investigation` provides an interactive 8-step playbook for i
 ## 6. Verification & Test Evidence
 
 ### Test Suite Execution (`pytest tests/`)
-* **Total Tests:** 27 passed (100% success rate)
+* **Total Tests:** 35 passed (100% success rate)
 * **Coverage:**
   - Multi-source parsers: `windows_sysmon`, `linux_auditd`, `network_firewall`, CSV/JSONL tolerance.
   - 5 Correlation scenarios: brute force, post-logon shell, privilege elevation, port scanning, sensitive file access, lateral movement.
+  - Benign test suites for every rule (including Rule 2 subthreshold, mismatched user/IP, and window expiry; Rule 5 `/etc/passwd` read; Rule 4 multi-host HTTPS egress).
   - Idempotent deduplication and false-positive suppression on benign activity.
   - Web UI routes: upload, correlation, clear, `/investigation`, `/investigation/save`, `/investigation/export`, and dataset generation.
 
 ### Live Datastore Verification (`test_e2e.py`)
 Tested directly against portable **Elasticsearch 8.13.0** (`127.0.0.1:9200`) and **Kibana 8.13.0** (`127.0.0.1:5601`):
-* **Events Indexed:** 49 events successfully parsed and stored in `security-events`.
-* **Alerts Generated:** 13 scored alerts stored in `security-alerts` covering all 5 scenarios.
+* **Events Indexed:** Isolated in test indices (`test-security-events`), leaving live indices at exactly 0 documents.
+* **Alerts Generated:** 13 scored alerts stored in `test-security-alerts` covering all 5 scenarios.
 * **Deduplication:** Re-ingesting telemetry resulted in 0 duplicate events and 0 duplicate alerts.
-* **Kibana Objects:** All 12 saved objects verified with HTTP 200 via Kibana Saved Objects API, using pure Lens visualizations with default time range covering the telemetry.
+* **Kibana Objects:** All 15 saved objects verified with HTTP 200 via Kibana Saved Objects API, using pure Lens visualizations with default time range covering the telemetry.

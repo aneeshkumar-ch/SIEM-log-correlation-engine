@@ -131,7 +131,7 @@ objects.append({
     ]
 })
 
-# 4. Lens: Top Source IPs (Pure Lens Horizontal Bars)
+# 4. Lens Data Table: Top Source IPs
 objects.append({
     "id": "top-source-ips",
     "type": "lens",
@@ -139,8 +139,8 @@ objects.append({
     "typeMigrationVersion": "8.9.0",
     "attributes": {
         "title": "Top Source IPs",
-        "description": "Top source IP addresses by alert frequency",
-        "visualizationType": "lnsXY",
+        "description": "Top source IP addresses by alert frequency (Data Table)",
+        "visualizationType": "lnsDatatable",
         "state": {
             "datasourceStates": {
                 "formBased": {
@@ -169,17 +169,10 @@ objects.append({
             "filters": [],
             "query": {"language": "kuery", "query": ""},
             "visualization": {
-                "shape": "bars",
-                "isStacked": False,
-                "legend": {"isVisible": False, "position": "right"},
-                "layers": [
-                    {
-                        "layerId": "layer_1",
-                        "layerType": "data",
-                        "seriesType": "bar",
-                        "xAccessor": "col_ip",
-                        "accessors": ["col_count"]
-                    }
+                "layerId": "layer_1",
+                "columns": [
+                    {"columnId": "col_ip"},
+                    {"columnId": "col_count"}
                 ]
             }
         }
@@ -190,7 +183,7 @@ objects.append({
     ]
 })
 
-# 5. Lens: Hosts with Post-Logon Suspicious Execution
+# 5. Lens Data Table: Hosts with Post-Logon Suspicious Execution
 objects.append({
     "id": "suspicious-execution-hosts",
     "type": "lens",
@@ -198,14 +191,14 @@ objects.append({
     "typeMigrationVersion": "8.9.0",
     "attributes": {
         "title": "Hosts with Post-Logon Suspicious Execution",
-        "description": "Endpoints impacted by suspicious post-logon execution",
-        "visualizationType": "lnsXY",
+        "description": "Endpoints impacted by suspicious post-logon execution (Data Table)",
+        "visualizationType": "lnsDatatable",
         "state": {
             "datasourceStates": {
                 "formBased": {
                     "layers": {
                         "layer_1": {
-                            "columnOrder": ["col_host", "col_count", "col_user"],
+                            "columnOrder": ["col_host", "col_user", "col_count"],
                             "columns": {
                                 "col_host": {
                                     "label": "Host",
@@ -216,10 +209,6 @@ objects.append({
                                     },
                                     "sourceField": "host"
                                 },
-                                "col_count": {
-                                    "label": "Alert Count",
-                                    "operationType": "count"
-                                },
                                 "col_user": {
                                     "label": "User",
                                     "operationType": "terms",
@@ -228,6 +217,10 @@ objects.append({
                                         "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
                                     },
                                     "sourceField": "user"
+                                },
+                                "col_count": {
+                                    "label": "Alert Count",
+                                    "operationType": "count"
                                 }
                             }
                         }
@@ -237,18 +230,11 @@ objects.append({
             "filters": [],
             "query": {"language": "kuery", "query": "rule_name: \"Post-Logon Suspicious Execution\""},
             "visualization": {
-                "shape": "bars",
-                "isStacked": True,
-                "legend": {"isVisible": True, "position": "right"},
-                "layers": [
-                    {
-                        "layerId": "layer_1",
-                        "layerType": "data",
-                        "seriesType": "bar_stacked",
-                        "xAccessor": "col_host",
-                        "accessors": ["col_count"],
-                        "splitAccessor": "col_user"
-                    }
+                "layerId": "layer_1",
+                "columns": [
+                    {"columnId": "col_host"},
+                    {"columnId": "col_user"},
+                    {"columnId": "col_count"}
                 ]
             }
         }
@@ -318,7 +304,205 @@ objects.append({
     ]
 })
 
-# 7. Lens: Timeline Events Over Time (from security-events*)
+# 7. Lens: Alerts by User
+objects.append({
+    "id": "alerts-by-user",
+    "type": "lens",
+    "coreMigrationVersion": "8.8.0",
+    "typeMigrationVersion": "8.9.0",
+    "attributes": {
+        "title": "Alerts by User",
+        "description": "Alert volume broken down by target user",
+        "visualizationType": "lnsXY",
+        "state": {
+            "datasourceStates": {
+                "formBased": {
+                    "layers": {
+                        "layer_1": {
+                            "columnOrder": ["col_user", "col_count"],
+                            "columns": {
+                                "col_user": {
+                                    "label": "User",
+                                    "operationType": "terms",
+                                    "params": {
+                                        "size": 10,
+                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
+                                    },
+                                    "sourceField": "user"
+                                },
+                                "col_count": {
+                                    "label": "Alert Count",
+                                    "operationType": "count"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "filters": [],
+            "query": {"language": "kuery", "query": ""},
+            "visualization": {
+                "shape": "bars",
+                "isStacked": False,
+                "legend": {"isVisible": False, "position": "right"},
+                "layers": [
+                    {
+                        "layerId": "layer_1",
+                        "layerType": "data",
+                        "seriesType": "bar",
+                        "xAccessor": "col_user",
+                        "accessors": ["col_count"]
+                    }
+                ]
+            }
+        }
+    },
+    "references": [
+        {"id": ALERTS_DV_ID, "name": "indexpattern-datasource-layer-layer_1", "type": "index-pattern"},
+        {"id": ALERTS_DV_ID, "name": "indexpattern-datasource-current-indexpattern", "type": "index-pattern"}
+    ]
+})
+
+# 8. Lens: Alerts by Host
+objects.append({
+    "id": "alerts-by-host",
+    "type": "lens",
+    "coreMigrationVersion": "8.8.0",
+    "typeMigrationVersion": "8.9.0",
+    "attributes": {
+        "title": "Alerts by Host",
+        "description": "Alert volume broken down by affected endpoint or host",
+        "visualizationType": "lnsXY",
+        "state": {
+            "datasourceStates": {
+                "formBased": {
+                    "layers": {
+                        "layer_1": {
+                            "columnOrder": ["col_host", "col_count"],
+                            "columns": {
+                                "col_host": {
+                                    "label": "Host",
+                                    "operationType": "terms",
+                                    "params": {
+                                        "size": 10,
+                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
+                                    },
+                                    "sourceField": "host"
+                                },
+                                "col_count": {
+                                    "label": "Alert Count",
+                                    "operationType": "count"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "filters": [],
+            "query": {"language": "kuery", "query": ""},
+            "visualization": {
+                "shape": "bars",
+                "isStacked": False,
+                "legend": {"isVisible": False, "position": "right"},
+                "layers": [
+                    {
+                        "layerId": "layer_1",
+                        "layerType": "data",
+                        "seriesType": "bar",
+                        "xAccessor": "col_host",
+                        "accessors": ["col_count"]
+                    }
+                ]
+            }
+        }
+    },
+    "references": [
+        {"id": ALERTS_DV_ID, "name": "indexpattern-datasource-layer-layer_1", "type": "index-pattern"},
+        {"id": ALERTS_DV_ID, "name": "indexpattern-datasource-current-indexpattern", "type": "index-pattern"}
+    ]
+})
+
+# 9. Lens Data Table: Recent Security Alerts
+objects.append({
+    "id": "recent-alerts-table",
+    "type": "lens",
+    "coreMigrationVersion": "8.8.0",
+    "typeMigrationVersion": "8.9.0",
+    "attributes": {
+        "title": "Recent Security Alerts",
+        "description": "Detailed tabular record of recent alerts (Data Table)",
+        "visualizationType": "lnsDatatable",
+        "state": {
+            "datasourceStates": {
+                "formBased": {
+                    "layers": {
+                        "layer_1": {
+                            "columnOrder": ["col_rule", "col_sev", "col_user", "col_ip", "col_host", "col_count"],
+                            "columns": {
+                                "col_rule": {
+                                    "label": "Rule Name",
+                                    "operationType": "terms",
+                                    "params": {
+                                        "size": 20,
+                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
+                                    },
+                                    "sourceField": "rule_name"
+                                },
+                                "col_sev": {
+                                    "label": "Severity",
+                                    "operationType": "terms",
+                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
+                                    "sourceField": "severity"
+                                },
+                                "col_user": {
+                                    "label": "User",
+                                    "operationType": "terms",
+                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
+                                    "sourceField": "user"
+                                },
+                                "col_ip": {
+                                    "label": "Source IP",
+                                    "operationType": "terms",
+                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
+                                    "sourceField": "src_ip"
+                                },
+                                "col_host": {
+                                    "label": "Host",
+                                    "operationType": "terms",
+                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
+                                    "sourceField": "host"
+                                },
+                                "col_count": {
+                                    "label": "Count",
+                                    "operationType": "count"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "filters": [],
+            "query": {"language": "kuery", "query": ""},
+            "visualization": {
+                "layerId": "layer_1",
+                "columns": [
+                    {"columnId": "col_rule"},
+                    {"columnId": "col_sev"},
+                    {"columnId": "col_user"},
+                    {"columnId": "col_ip"},
+                    {"columnId": "col_host"},
+                    {"columnId": "col_count"}
+                ]
+            }
+        }
+    },
+    "references": [
+        {"id": ALERTS_DV_ID, "name": "indexpattern-datasource-layer-layer_1", "type": "index-pattern"},
+        {"id": ALERTS_DV_ID, "name": "indexpattern-datasource-current-indexpattern", "type": "index-pattern"}
+    ]
+})
+
+# 10. Lens: Timeline Events Over Time (from security-events*)
 objects.append({
     "id": "timeline-events-over-time",
     "type": "lens",
@@ -520,7 +704,7 @@ objects.append({
     "typeMigrationVersion": "8.9.0",
     "attributes": {
         "title": "Alerts Dashboard",
-        "description": "Generated alerts by rule, severity, and impacted source",
+        "description": "Generated alerts by rule, severity, user, host, top IPs, and recent alerts table",
         "hits": 0,
         "timeRestore": True,
         "timeFrom": "now-30d",
@@ -542,8 +726,26 @@ objects.append({
             {
                 "version": "8.13.0",
                 "panelIndex": "panel-3",
-                "gridData": {"x": 0, "y": 15, "w": 48, "h": 15, "i": "panel-3"},
+                "gridData": {"x": 0, "y": 15, "w": 24, "h": 15, "i": "panel-3"},
                 "panelRefName": "panel_panel-3"
+            },
+            {
+                "version": "8.13.0",
+                "panelIndex": "panel-4",
+                "gridData": {"x": 24, "y": 15, "w": 24, "h": 15, "i": "panel-4"},
+                "panelRefName": "panel_panel-4"
+            },
+            {
+                "version": "8.13.0",
+                "panelIndex": "panel-5",
+                "gridData": {"x": 0, "y": 30, "w": 48, "h": 15, "i": "panel-5"},
+                "panelRefName": "panel_panel-5"
+            },
+            {
+                "version": "8.13.0",
+                "panelIndex": "panel-6",
+                "gridData": {"x": 0, "y": 45, "w": 48, "h": 15, "i": "panel-6"},
+                "panelRefName": "panel_panel-6"
             }
         ]),
         "kibanaSavedObjectMeta": {
@@ -553,7 +755,10 @@ objects.append({
     "references": [
         {"id": "alerts-by-rule", "name": "panel_panel-1", "type": "lens"},
         {"id": "alerts-by-severity", "name": "panel_panel-2", "type": "lens"},
-        {"id": "top-source-ips", "name": "panel_panel-3", "type": "lens"}
+        {"id": "alerts-by-user", "name": "panel_panel-3", "type": "lens"},
+        {"id": "alerts-by-host", "name": "panel_panel-4", "type": "lens"},
+        {"id": "top-source-ips", "name": "panel_panel-5", "type": "lens"},
+        {"id": "recent-alerts-table", "name": "panel_panel-6", "type": "lens"}
     ]
 })
 

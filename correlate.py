@@ -329,11 +329,22 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
                 window_net.append(net_evs[j])
                 j += 1
 
-            # 4A: Check port scan (distinct destination ports or hosts >= threshold)
-            scanned_ports = {w.get("destination_port") for w in window_net if w.get("destination_port") is not None}
-            scanned_hosts = {w.get("destination_ip") or w.get("host") for w in window_net if w.get("destination_ip") or w.get("host")}
+            # 4A: Check port scan: many distinct destination ports from one source to one destination host
+            ports_per_dest: Dict[str, set] = {}
+            for w in window_net:
+                dest = w.get("destination_ip") or w.get("dest_ip") or w.get("host") or "target"
+                dport = w.get("destination_port")
+                if dport is not None:
+                    ports_per_dest.setdefault(str(dest), set()).add(dport)
 
-            if len(scanned_ports) >= config.NETWORK_SCAN_PORT_THRESHOLD or len(scanned_hosts) >= config.NETWORK_SCAN_PORT_THRESHOLD:
+            target_port_scan = None
+            for dest, ports in ports_per_dest.items():
+                if len(ports) >= config.NETWORK_SCAN_PORT_THRESHOLD:
+                    target_port_scan = (dest, len(ports))
+                    break
+
+            if target_port_scan:
+                target_dest, count_ports = target_port_scan
                 alert_doc = {
                     "rule_name": "Network Port Scan Detected",
                     "severity": "high",
@@ -345,7 +356,7 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
                     "first_seen": net_evs[i]["timestamp"],
                     "last_seen": window_net[-1]["timestamp"],
                     "mitre_technique": "T1046",
-                    "description": f"Source IP {s_ip} scanned {len(scanned_ports)} distinct ports across network",
+                    "description": f"Source IP {s_ip} scanned {count_ports} distinct ports on destination {target_dest}",
                     "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 }
                 alerts.append(alert_doc)

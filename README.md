@@ -89,20 +89,132 @@ All detection rules, thresholds, and sliding windows are externalized in `config
 
 | # | Detection Scenario | Trigger Conditions | Severity | MITRE Technique |
 |---|---|---|---|---|
-| **1** | **Brute Force Authentication** | $\ge 5$ failed logons from same IP within 10 minutes | High | `T1110` (Brute Force) |
-| | *Successful Brute Force* | Followed by successful authentication within window | Critical | `T1110.001` (Password Guessing) |
+| **1** | **Brute Force Authentication** | $\ge 5$ failed logons from same IP within 10 minutes (`config.BRUTE_FORCE_WINDOW_MINUTES = 10`) | High | `T1110` (Brute Force) |
+| | *Successful Brute Force* | Followed by successful authentication from same IP within window | Critical | `T1110.001` (Password Guessing) |
 | **2** | **Suspicious Process Execution** | Post-Logon execution of `powershell.exe`/`cmd.exe` by non-admin within 2m, or shell spawned from unusual parent (`winword.exe`, etc.) | High / Med | `T1059.001` (PowerShell) / `T1059` |
 | **3** | **Privilege-Related Activity** | Windows Event 4672 (special privileges assigned), unauthorized `sudo`/`su` elevation, or auditd UID/EUID privilege changes | High | `T1548` (Abuse Elevation Control) / `T1078` |
-| **4** | **Network-Based Suspicious Activity** | Single source IP probing $\ge 5$ destination ports/hosts within 5 minutes, or bursts of $\ge 5$ blocked connections | High / Med | `T1046` (Network Service Discovery) |
-| **5** | **Additional Security Event** | Sensitive system file access (e.g. `/etc/shadow`, `SAM`) or user lateral movement ($\ge 2$ hosts within 10m) | High | `T1003.008` (Credential Dumping) / `T1021` (Remote Services) |
+| **4** | **Network-Based Suspicious Activity** | Single source IP probing $\ge 5$ distinct ports on a destination host within 5 minutes, or bursts of $\ge 5$ blocked connections | High / Med | `T1046` (Network Service Discovery) |
+| **5** | **Additional Security Event** | Sensitive system file access (e.g. `/etc/shadow`, `SAM`, `ntds.dit`) or user lateral movement ($\ge 2$ hosts within 10m) | High | `T1003.008` (Credential Dumping) / `T1021` (Remote Services) |
+
 
 ---
 
-## 4. Setup and Quickstart
+## 4. End-to-End Data Flow
 
-### Prerequisites
-* Windows PC with Python 3.10+
-* Portable Elasticsearch 8.13.0 and Kibana 8.13.0 in `./stack` (or Docker Desktop)
+```text
+[ Raw Telemetry Ingestion ]
+    ├── Web Upload (/upload)  ──┐
+    └── Watched Folder (./incoming) ──┴──> [ collector.py ]
+                                                │
+                                                ▼
+[ Parsing & Normalization ] <────── [ normalizer.py ]
+    ├── Windows Sysmon Parser (JSON/CSV)
+    ├── Linux auditd & SSH Parser (SYSCALL / auth.log)
+    └── Network Firewall Parser (UFW / Cisco / iptables)
+                                                │
+                                                ▼ (Deterministic SHA-256 _id)
+[ Storage & Indexing ] ────────────> [ storage.py ]
+    ├── security-events  (Normalized telemetry with explicit date/ip/kw mappings)
+    └── security-alerts  (Scored, deduplicated correlation alerts)
+                                                │
+                                                ▼
+[ Correlation Engine ] <─────────── [ correlate.py ]
+    ├── Rule 1: Brute Force (High / Critical)
+    ├── Rule 2: Post-Logon Suspicious Process
+    ├── Rule 3: Privilege Elevation (4672 / sudo)
+    ├── Rule 4: Network Port Scan & Block Bursts
+    └── Rule 5: Sensitive Files & Lateral Movement
+                                                │
+                                                ▼
+[ Analyst & Student Investigation ]
+    ├── Kibana 8.13 Dashboards (SOC Triage, Alerts Dashboard, Timeline Analysis)
+    └── Web Incident Lab (/investigation with 8-Step Interactive Playbook)
+```
+
+---
+
+## 5. Indices and Schema Mappings
+
+Both indices use explicit, strictly typed mappings in Elasticsearch 8.13:
+
+### Index: `security-events`
+| Field | Type | Description |
+|---|---|---|
+| `timestamp` | `date` | UTC ISO8601 event occurrence time |
+| `source` | `keyword` | High-level log source (`Windows`, `Linux`, `Network`) |
+| `event_type` | `keyword` | Canonical event type (`logon_success`, `logon_failure`, `process_create`, etc.) |
+| `user` | `keyword` | Authenticated account or process owner |
+| `source_ip` | `ip` | Origin IPv4/IPv6 address (sanitized, null if absent) |
+| `destination_ip` | `ip` | Target IPv4/IPv6 address (sanitized, null if absent) |
+| `destination_port`| `integer` | Target network port (e.g. 22, 80, 443) |
+| `process_name` | `keyword` | Executed binary basename (e.g. `powershell.exe`) |
+| `severity` | `keyword` | Log severity rating (`low`, `medium`, `high`, `critical`) |
+| `host` | `keyword` | Originating endpoint or system hostname |
+| `raw_log` | `text` | Unmodified raw log string |
+| `ip_tags` | `keyword` | Offline tags (`["private", "internal"]` vs `["public", "external"]`) |
+
+### Index: `security-alerts`
+| Field | Type | Description |
+|---|---|---|
+| `rule_name` | `keyword` | Detection scenario name |
+| `severity` | `keyword` | Alert severity (`medium`, `high`, `critical`) |
+| `source_ip` | `ip` | Attacker or originating IP |
+| `user` | `keyword` | Impacted user account |
+| `host` | `keyword` | Impacted endpoint or comma-separated target hosts |
+| `evidence` | `keyword` | Array of deterministic `_id` values of triggering events |
+| `first_seen` | `date` | Timestamp of first event in correlation window |
+| `last_seen` | `date` | Timestamp of triggering event |
+| `mitre_technique` | `keyword` | MITRE ATT&CK technique ID (e.g. `T1110`, `T1059.001`) |
+| `description` | `text` | Human-readable alert summary |
+| `created_at` | `date` | Alert creation timestamp |
+
+---
+
+## 6. Expected Input Formats & Examples
+
+### 1. Windows Sysmon & Security Logs
+- **Supported Formats:** JSON lines (`.json`, `.jsonl`) or comma-delimited CSV (`.csv`).
+- **Expected Columns / Keys:** `EventID`, `TimeCreated`, `Computer`, `TargetUserName`, `IpAddress`, `NewProcessName`, `ParentProcessName`.
+- **Example JSON:**
+  ```json
+  {"EventID": 4624, "TimeCreated": "2026-10-13T10:15:00Z", "Computer": "WIN-WS04", "TargetUserName": "alice", "IpAddress": "192.168.1.55"}
+  {"EventID": 4688, "TimeCreated": "2026-10-13T10:15:45Z", "Computer": "WIN-WS04", "TargetUserName": "alice", "NewProcessName": "powershell.exe"}
+  ```
+- **Example CSV:**
+  ```csv
+  EventID,TimeCreated,Computer,TargetUserName,IpAddress,NewProcessName
+  4624,2026-10-13T10:30:00Z,WIN-FINANCE,david,192.168.1.88,
+  4688,2026-10-13T10:31:10Z,WIN-FINANCE,david,,powershell.exe
+  ```
+
+### 2. Linux auditd & Auth Logs
+- **Supported Formats:** Linux syslog text (`.log`, `.txt`).
+- **Expected Formats:**
+  - `auditd` syscall events: `type=SYSCALL msg=audit(...) ... name="..." exe="..."`
+  - `sshd` auth.log events: `Failed password for [user] from [ip] port [port] ssh2` / `Accepted password for [user] from [ip] port [port] ssh2`
+- **Example Lines:**
+  ```text
+  Oct 13 10:10:00 srv01 sshd[201]: Failed password for invalid user admin from 203.0.113.50 port 5001 ssh2
+  Oct 13 10:11:20 srv01 sshd[206]: Accepted password for alice from 203.0.113.50 port 5006 ssh2
+  type=SYSCALL msg=audit(1697191230.100:10): arch=c000003e syscall=59 success=yes exit=0 auid=1002 uid=1002 exe="/usr/bin/cat" name="/etc/shadow" host=srv-shadow
+  ```
+
+### 3. Network Firewall Logs
+- **Supported Formats:** UFW kernel logs, Cisco ASA connection messages, standard syslog (`.log`, `.txt`).
+- **Expected Fields:** Timestamp, hostname, action (`[UFW BLOCK]`, `[UFW ALLOW]`, `%ASA-...`), `SRC=`, `DST=`, `SPT=`, `DPT=`, `PROTO=`.
+- **Example Lines:**
+  ```text
+  Oct 13 10:10:00 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5510 DPT=22
+  Oct 13 10:10:15 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5511 DPT=80
+  Oct 13 10:10:30 fw01 kernel: [UFW ALLOW] IN=eth0 OUT= SRC=192.168.1.50 DST=10.0.0.1 PROTO=TCP SPT=4001 DPT=443
+  ```
+
+---
+
+## 7. Setup and Quickstart
+
+### Deployment Note: Portable Windows Stack
+Elasticsearch 8.13.0 and Kibana 8.13.0 are installed as standalone portable Windows distributions located in `./stack` (`./stack/elasticsearch-8.13.0` and `./stack/kibana-8.13.0`). Docker Desktop was unavailable on this host PC. A standard `docker-compose.yml` is maintained in the root directory for containerized environments, but local execution uses the native portable stack scripts:
 
 ### Step 1: Start Datastore & Dashboards
 ```powershell
@@ -126,10 +238,10 @@ This imports:
 
 ### Step 3: Run Full Verification Suite
 ```powershell
-# Run unit test suite (27 tests)
+# Run unit test suite (35 tests)
 pytest tests/
 
-# Run end-to-end integration test against live Elasticsearch 8.13
+# Run end-to-end integration test (runs on test-* indices; preserves live data)
 python test_e2e.py
 ```
 
@@ -142,7 +254,25 @@ Open browser at `http://127.0.0.1:8000/investigation`:
 
 ---
 
-## 5. File Structure Reference
+## 8. Troubleshooting Guide
+
+### 1. `vm.max_map_count` Insufficient (Docker / Linux Environments)
+- **Symptom:** Elasticsearch fails to start in Docker with `max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]`.
+- **Resolution:**
+  - On Linux / WSL2: Run `sudo sysctl -w vm.max_map_count=262144`.
+  - Persist permanently in `/etc/sysctl.conf` by adding `vm.max_map_count=262144`.
+
+### 2. Correlation Rules Never Firing Because of Timezone Mismatch
+- **Symptom:** Ingested logs contain local time strings (e.g. `Oct 13 10:00:00`) while system clock or queries use a different offset, causing events to fall outside sliding correlation windows.
+- **Resolution:** The engine normalizes all parsed log timestamps into strict UTC ISO8601 strings (`parse_timestamp_to_utc_iso`). Correlation windows compare event timestamps relative to each other chronologically, rather than comparing against the host machine's system clock. Ensure log timestamps maintain consistent relative ordering.
+
+### 3. Empty Kibana Panels Due to Default Time Filter
+- **Symptom:** Dashboards open in Kibana showing "No results found" across all Lens panels.
+- **Resolution:** Kibana defaults new sessions to `Last 15 minutes`. The dashboards exported in `soc_triage_board.ndjson` include `timeRestore: true` set to `now-30d` to `now+1d`. If panels appear blank after uploading historical log files, adjust the Kibana time picker in the top right to cover the date range of the uploaded logs.
+
+---
+
+## 9. File Structure Reference
 
 ```
 D:\PROJECTS\SIEM-CORRELATION-ENGINE\
@@ -166,6 +296,11 @@ D:\PROJECTS\SIEM-CORRELATION-ENGINE\
 │   ├── fixtures/             # Isolated test telemetry fixtures
 │   ├── test_normalizer.py    # Unit tests for multi-source parsers and schema
 │   ├── test_correlation.py   # Unit tests for all 5 correlation rules and edge cases
-│   └── test_app.py           # API and web route integration tests
-└── test_e2e.py               # Live end-to-end verification against real Elasticsearch
+│   ├── test_app.py           # API and web route integration tests
+│   └── fixtures/             # Seeded fixture log files for test verification
+├── test_e2e.py               # E2E integration test runner (runs on test-* indices)
+├── start_stack.bat / .ps1    # Portable stack launchers for Elasticsearch and Kibana
+├── stop_stack.bat / .ps1     # Process termination scripts for portable stack
+├── README.md                 # Project architecture, data flow, formats, quickstart
+└── writeup.md                # Comprehensive technical report & operational writeup
 ```

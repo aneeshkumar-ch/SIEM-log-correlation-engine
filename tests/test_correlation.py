@@ -16,7 +16,7 @@ def mock_es():
 
 
 def test_rule1_brute_force_suspected(mock_es):
-    """Asserts Rule 1 fires when >=5 logon failures occur within 5 mins without subsequent success."""
+    """Asserts Rule 1 fires when >=5 logon failures occur within 10 mins without subsequent success."""
     lines = [
         "Oct 13 10:00:00 srv01 sshd[101]: Failed password for invalid user admin from 198.51.100.10 port 4001 ssh2",
         "Oct 13 10:00:30 srv01 sshd[102]: Failed password for invalid user root from 198.51.100.10 port 4002 ssh2",
@@ -63,6 +63,61 @@ def test_rule2_successful_brute_force(mock_es):
     assert a["user"] == "alice"
     assert a["mitre_technique"] == "T1110.001"
     assert len(a["evidence"]) == 6
+
+
+def test_rule2_benign_subthreshold_failures_then_success(mock_es):
+    """(a) Asserts Rule 2 must NOT fire on 4 failures followed by a success (below threshold 5)."""
+    lines = [
+        "Oct 13 10:10:00 srv01 sshd[201]: Failed password for invalid user user1 from 203.0.113.50 port 5001 ssh2",
+        "Oct 13 10:10:15 srv01 sshd[202]: Failed password for invalid user user2 from 203.0.113.50 port 5002 ssh2",
+        "Oct 13 10:10:30 srv01 sshd[203]: Failed password for invalid user user3 from 203.0.113.50 port 5003 ssh2",
+        "Oct 13 10:10:45 srv01 sshd[204]: Failed password for invalid user user4 from 203.0.113.50 port 5004 ssh2",
+        "Oct 13 10:11:00 srv01 sshd[205]: Accepted password for alice from 203.0.113.50 port 5005 ssh2",
+    ]
+    events, _ = normalizer.normalize_content("\n".join(lines), "linux_auth")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    assert not any(a["rule_name"] == "Successful Brute Force" for a in alerts), f"Rule 2 fired on 4 failures: {alerts}"
+
+
+def test_rule2_benign_different_ip_and_user_success(mock_es):
+    """(b) Asserts Rule 2 must NOT fire on 5 failures from one IP and success from a different IP and user."""
+    lines = [
+        "Oct 13 10:10:00 srv01 sshd[201]: Failed password for invalid user admin from 198.51.100.10 port 5001 ssh2",
+        "Oct 13 10:10:15 srv01 sshd[202]: Failed password for invalid user user1 from 198.51.100.10 port 5002 ssh2",
+        "Oct 13 10:10:30 srv01 sshd[203]: Failed password for invalid user user2 from 198.51.100.10 port 5003 ssh2",
+        "Oct 13 10:10:45 srv01 sshd[204]: Failed password for invalid user user3 from 198.51.100.10 port 5004 ssh2",
+        "Oct 13 10:11:00 srv01 sshd[205]: Failed password for invalid user user4 from 198.51.100.10 port 5005 ssh2",
+        # Legitimate login from entirely different IP and user
+        "Oct 13 10:11:10 srv01 sshd[206]: Accepted password for bob from 10.0.0.99 port 5006 ssh2",
+    ]
+    events, _ = normalizer.normalize_content("\n".join(lines), "linux_auth")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    assert not any(a["rule_name"] == "Successful Brute Force" for a in alerts), f"Rule 2 fired on different IP: {alerts}"
+    # Rule 1 should still trigger for the attacking IP
+    assert any(a["rule_name"] == "Brute Force Suspected" and a["src_ip"] == "198.51.100.10" for a in alerts)
+
+
+def test_rule2_benign_success_after_window_expired(mock_es):
+    """(c) Asserts Rule 2 must NOT fire on 5 failures followed by a success after window (10 mins) expired."""
+    lines = [
+        "Oct 13 10:00:00 srv01 sshd[201]: Failed password for invalid user user1 from 203.0.113.50 port 5001 ssh2",
+        "Oct 13 10:00:15 srv01 sshd[202]: Failed password for invalid user user2 from 203.0.113.50 port 5002 ssh2",
+        "Oct 13 10:00:30 srv01 sshd[203]: Failed password for invalid user user3 from 203.0.113.50 port 5003 ssh2",
+        "Oct 13 10:00:45 srv01 sshd[204]: Failed password for invalid user user4 from 203.0.113.50 port 5004 ssh2",
+        "Oct 13 10:01:00 srv01 sshd[205]: Failed password for invalid user user5 from 203.0.113.50 port 5005 ssh2",
+        # Success occurs 15 minutes after the last failure (outside 10 min window)
+        "Oct 13 10:16:01 srv01 sshd[206]: Accepted password for alice from 203.0.113.50 port 5006 ssh2",
+    ]
+    events, _ = normalizer.normalize_content("\n".join(lines), "linux_auth")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    assert not any(a["rule_name"] == "Successful Brute Force" for a in alerts), f"Rule 2 fired outside window: {alerts}"
+
 
 
 def test_rule3_post_logon_suspicious_execution(mock_es):
@@ -303,5 +358,32 @@ def test_scenario5_sensitive_file_and_lateral_movement_benign(mock_es):
 
     alerts = correlate.run_correlation(mock_es)
     assert not any(a["rule_name"] in ("Sensitive File Access", "Suspected Lateral Movement") for a in alerts)
+
+
+def test_rule5_benign_etc_passwd_read(mock_es):
+    """Asserts reading /etc/passwd does NOT trigger Sensitive File Access (normal process behavior)."""
+    normal_passwd_log = "type=SYSCALL msg=audit(1697191230.100:10): arch=c000003e syscall=59 success=yes exit=0 auid=1000 uid=1000 exe=\"/usr/bin/cat\" name=\"/etc/passwd\" host=srv-prod"
+    events, _ = normalizer.normalize_content(normal_passwd_log, "linux_auditd")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    assert not any(a["rule_name"] == "Sensitive File Access" for a in alerts), f"Alerted on /etc/passwd: {alerts}"
+
+
+def test_scenario4_benign_multiple_allowed_hosts_single_port(mock_es):
+    """Asserts a client making 10 ALLOWED connections to different hosts on port 443 in 5m must NOT alert."""
+    lines = [
+        f"Oct 13 12:10:{i:02d} fw01 kernel: [UFW ALLOW] IN=eth0 SRC=192.168.1.50 DST=10.0.0.{i} PROTO=TCP SPT={4000+i} DPT=443"
+        for i in range(1, 11)
+    ]
+    events, _ = normalizer.normalize_content("\n".join(lines), "network_firewall")
+    assert len(events) == 10
+
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+    alerts = correlate.run_correlation(mock_es)
+
+    net_alerts = [a for a in alerts if "Network" in a["rule_name"] or "Burst" in a["rule_name"]]
+    assert len(net_alerts) == 0, f"Expected 0 alerts for 10 allowed HTTPS connections, got: {net_alerts}"
+
 
 
