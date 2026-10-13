@@ -203,3 +203,56 @@ def test_fixture_files_trigger_expected_rules(mock_es):
     alertsb = correlate.run_correlation(mock_es)
     assert len(alertsb) == 0
 
+
+def test_scenario3_privilege_activity(mock_es):
+    """Asserts Scenario 3 triggers on Event 4672 special privileges and sudo elevation."""
+    import json
+    win_priv = json.dumps({
+        "EventID": 4672,
+        "TimeCreated": "2026-10-13T12:00:00Z",
+        "Computer": "WIN-DC01",
+        "TargetUserName": "svc_backup"
+    })
+    events, _ = normalizer.normalize_content(win_priv, "windows_sysmon")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    assert any(a["rule_name"] == "Privilege-Related Activity" and a["severity"] == "high" for a in alerts)
+
+
+def test_scenario4_network_port_scan_and_burst(mock_es):
+    """Asserts Scenario 4 triggers on port scan (>=5 ports) and blocked bursts."""
+    # 5 blocked connections on distinct ports within 2 minutes
+    lines = [
+        f"Oct 13 12:10:0{i} fw01 kernel: [UFW BLOCK] IN=eth0 SRC=198.51.100.99 DST=10.0.0.50 PROTO=TCP SPT=400{i} DPT=80{i}"
+        for i in range(5)
+    ]
+    events, _ = normalizer.normalize_content("\n".join(lines), "network_firewall")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    rule_names = [a["rule_name"] for a in alerts]
+    assert "Network Port Scan Detected" in rule_names or "Burst of Blocked Connections" in rule_names
+
+
+def test_scenario5_sensitive_file_and_lateral_movement(mock_es):
+    """Asserts Scenario 5 triggers on sensitive file access (/etc/shadow) and lateral movement."""
+    # 5A: /etc/shadow access
+    shadow_log = "type=SYSCALL msg=audit(1697191230.100:10): arch=c000003e syscall=59 success=yes exit=0 auid=1002 uid=1002 exe=\"/usr/bin/cat\" name=\"/etc/shadow\" host=srv-shadow"
+    ev1, _ = normalizer.normalize_content(shadow_log, "linux_auditd")
+    bulk_index_events(mock_es, ev1, config.INDEX_EVENTS)
+
+    # 5B: Lateral movement: charlie logging on to host-a and host-b within 3 minutes
+    import json
+    lat_lines = "\n".join([
+        json.dumps({"EventID": 4624, "TimeCreated": "2026-10-13T12:20:00Z", "Computer": "HOST-A", "TargetUserName": "charlie"}),
+        json.dumps({"EventID": 4624, "TimeCreated": "2026-10-13T12:22:00Z", "Computer": "HOST-B", "TargetUserName": "charlie"})
+    ])
+    ev2, _ = normalizer.normalize_content(lat_lines, "windows_sysmon")
+    bulk_index_events(mock_es, ev2, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    rule_names = [a["rule_name"] for a in alerts]
+    assert "Sensitive File Access" in rule_names
+    assert "Suspected Lateral Movement" in rule_names
+
