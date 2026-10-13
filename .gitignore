@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest & test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# Uploaded log files (Passive Ingestion: do not commit uploaded telemetry)
+uploads/*
+!uploads/.gitkeep
+
+# Portable Stack binaries, runtimes, Elastic indices data, logs, and PIDs
+stack/
+*.pid
+*.log
+!tests/fixtures/*.log
+
+# OS & Editor files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

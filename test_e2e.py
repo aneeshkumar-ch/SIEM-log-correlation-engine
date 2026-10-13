@@ -1,0 +1,132 @@
+"""
+End-to-end verification test script for BCSSL Lab 07.
+Runs end-to-end ingestion, normalization, storage, correlation, and deduplication.
+Works against real Elasticsearch 8.13 (default) or Mock Elasticsearch (when USE_MOCK_ES=1).
+"""
+
+import sys
+import os
+from pathlib import Path
+from datetime import datetime, timezone
+
+import config
+import normalizer
+import correlate
+from storage import get_es_client, initialize_indices, bulk_index_events, MockElasticsearch
+
+FIXTURES_DIR = Path(__file__).resolve().parent / "tests" / "fixtures"
+
+
+def run_e2e_test():
+    print("=" * 70)
+    print("  BCSSL LAB 07: SIEM LOG CORRELATION ENGINE — E2E VERIFICATION")
+    print("=" * 70)
+
+    es = get_es_client()
+    is_mock = isinstance(es, MockElasticsearch)
+    target_mode = "Mock Elasticsearch (in-memory)" if is_mock else f"Real Elasticsearch at {config.ES_HOST}"
+    print(f"[*] Target Datastore: {target_mode}")
+
+    # Ping ES
+    try:
+        if not es.ping():
+            print(f"[!] Warning: Ping failed for {config.ES_HOST}.")
+            if not is_mock:
+                print("[!] Real Elasticsearch is not responding. Start Docker Desktop and 'docker compose up -d'.")
+                return False
+        else:
+            print("[+] Datastore connectivity confirmed.")
+    except Exception as e:
+        print(f"[!] Connection error: {e}")
+        if not is_mock:
+            print("[!] Real Elasticsearch is not responding. Start Docker Desktop and 'docker compose up -d'.")
+            return False
+
+    # Initialize indices
+    print("[*] Initializing 'normalized-events' and 'security-alerts' indices...")
+    initialize_indices(es)
+
+    # Clean indices for fresh test
+    try:
+        es.indices.delete(index=config.INDEX_EVENTS, ignore_unavailable=True)
+        es.indices.delete(index=config.INDEX_ALERTS, ignore_unavailable=True)
+        initialize_indices(es)
+        print("[+] Clean state established.")
+    except Exception as e:
+        print(f"[!] Index reset warning: {e}")
+
+    # 1. Ingest Rule 1 Fixture (Linux Auth Brute Force Failures)
+    f1 = FIXTURES_DIR / "rule1_brute_force_fail.log"
+    print(f"\n[1] Ingesting Linux Auth fixture ({f1.name})...")
+    ev1, sk1 = normalizer.normalize_content(f1.read_text(encoding="utf-8"), "linux_auth")
+    print(f"    Parsed: {len(ev1)} events | Skipped: {len(sk1)} lines")
+    bulk_index_events(es, ev1, config.INDEX_EVENTS)
+
+    # 2. Ingest Rule 2 Fixture (Linux Auth Successful Brute Force)
+    f2 = FIXTURES_DIR / "rule2_brute_force_success.log"
+    print(f"\n[2] Ingesting Linux Auth fixture ({f2.name})...")
+    ev2, sk2 = normalizer.normalize_content(f2.read_text(encoding="utf-8"), "linux_auth")
+    print(f"    Parsed: {len(ev2)} events | Skipped: {len(sk2)} lines")
+    bulk_index_events(es, ev2, config.INDEX_EVENTS)
+
+    # 3. Ingest Rule 3 Fixture (Windows Security 4624 -> PowerShell 4688)
+    f3 = FIXTURES_DIR / "rule3_post_logon_powershell.csv"
+    print(f"\n[3] Ingesting Windows Security CSV fixture ({f3.name})...")
+    ev3, sk3 = normalizer.normalize_content(f3.read_text(encoding="utf-8"), "windows_security")
+    print(f"    Parsed: {len(ev3)} events | Skipped: {len(sk3)} lines")
+    bulk_index_events(es, ev3, config.INDEX_EVENTS)
+
+    # Ingest Benign Fixture
+    fb = FIXTURES_DIR / "benign_activity.csv"
+    print(f"\n[4] Ingesting Benign Activity fixture ({fb.name})...")
+    evb, skb = normalizer.normalize_content(fb.read_text(encoding="utf-8"), "windows_security")
+    print(f"    Parsed: {len(evb)} events | Skipped: {len(skb)} lines")
+    bulk_index_events(es, evb, config.INDEX_EVENTS)
+
+    total_events = es.count(index=config.INDEX_EVENTS)["count"]
+    print(f"\n[+] Total normalized events indexed in '{config.INDEX_EVENTS}': {total_events}")
+
+    # Run Correlation
+    print("\n[*] Executing correlation rules over all indexed events...")
+    alerts = correlate.run_correlation(es)
+    print(f"[+] Correlation cycle complete. Raised {len(alerts)} alerts.")
+
+    # Validate generated alerts
+    rule_names = {a["rule_name"]: a for a in alerts}
+    print("\n" + "=" * 70)
+    print("  SECURITY-ALERTS INDEX REPORT")
+    print("=" * 70)
+    print(f"{'SEVERITY':<10} | {'RULE NAME':<32} | {'MITRE':<10} | {'TARGET USER':<12} | {'SRC IP':<15}")
+    print("-" * 90)
+    for a in alerts:
+        print(f"{a['severity'].upper():<10} | {a['rule_name']:<32} | {a['mitre_technique']:<10} | {str(a.get('user')):<12} | {str(a.get('src_ip')):<15}")
+
+    assert "Brute Force Suspected" in rule_names, "FAIL: Rule 1 did not trigger!"
+    assert rule_names["Brute Force Suspected"]["severity"] == "high", "FAIL: Rule 1 severity is not high!"
+
+    assert "Successful Brute Force" in rule_names, "FAIL: Rule 2 did not trigger!"
+    assert rule_names["Successful Brute Force"]["severity"] == "critical", "FAIL: Rule 2 severity is not critical!"
+
+    assert "Post-Logon Suspicious Execution" in rule_names, "FAIL: Rule 3 did not trigger!"
+
+    # Test Deduplication: Re-ingest Rule 3 fixture
+    print("\n[*] Testing Deduplication: Re-ingesting Windows Security fixture...")
+    bulk_index_events(es, ev3, config.INDEX_EVENTS)
+    alerts_after = correlate.run_correlation(es)
+    total_events_after = es.count(index=config.INDEX_EVENTS)["count"]
+    total_alerts_after = es.count(index=config.INDEX_ALERTS)["count"]
+
+    assert total_events_after == total_events, f"FAIL: Event count increased ({total_events_after} != {total_events})!"
+    assert total_alerts_after == len(alerts), f"FAIL: Alert count increased ({total_alerts_after} != {len(alerts)})!"
+
+    print(f"[+] Deduplication verified: Event count remains {total_events_after}, Alert count remains {total_alerts_after}.")
+
+    print("\n" + "=" * 70)
+    print("  ALL END-TO-END CORRELATION CHECKS PASSED [SUCCESS]")
+    print("=" * 70)
+    return True
+
+
+if __name__ == "__main__":
+    success = run_e2e_test()
+    sys.exit(0 if success else 1)

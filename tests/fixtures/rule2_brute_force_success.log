@@ -1,0 +1,6 @@
+Oct 13 10:10:00 srv01 sshd[201]: Failed password for invalid user admin from 203.0.113.50 port 5001 ssh2
+Oct 13 10:10:15 srv01 sshd[202]: Failed password for invalid user user1 from 203.0.113.50 port 5002 ssh2
+Oct 13 10:10:30 srv01 sshd[203]: Failed password for invalid user user2 from 203.0.113.50 port 5003 ssh2
+Oct 13 10:10:45 srv01 sshd[204]: Failed password for invalid user user3 from 203.0.113.50 port 5004 ssh2
+Oct 13 10:11:00 srv01 sshd[205]: Failed password for invalid user alice from 203.0.113.50 port 5005 ssh2
+Oct 13 10:11:20 srv01 sshd[206]: Accepted password for alice from 203.0.113.50 port 5006 ssh2

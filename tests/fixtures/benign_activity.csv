@@ -1,0 +1,5 @@
+EventID,TimeCreated,Computer,TargetUserName,IpAddress,NewProcessName
+4624,2026-10-13T11:10:00Z,WIN-SRV02,Administrator,10.0.0.1,
+4688,2026-10-13T11:10:15Z,WIN-SRV02,Administrator,,powershell.exe
+4624,2026-10-13T11:20:00Z,WIN-WORKSTATION,alice,10.0.0.2,
+4688,2026-10-13T11:20:30Z,WIN-WORKSTATION,alice,,notepad.exe

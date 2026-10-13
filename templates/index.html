@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCSSL Lab 07 - SIEM Log Correlation Engine</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --critical: #881337;
+            --critical-text: #fda4af;
+            --high: #7f1d1d;
+            --high-text: #fca5a5;
+            --medium: #78350f;
+            --medium-text: #fcd34d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            color: #60a5fa;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .top-links {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            text-decoration: none;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-kibana {
+            background-color: #6366f1;
+            color: #ffffff;
+        }
+        .btn-kibana:hover {
+            background-color: #4f46e5;
+        }
+
+        .btn-secondary {
+            background-color: #334155;
+            color: #e2e8f0;
+            border-color: #475569;
+        }
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: #ffffff;
+        }
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (min-width: 900px) {
+            .grid-2 {
+                grid-template-columns: 1.2fr 0.8fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        input[type="file"], select {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.875rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-critical {
+            background-color: var(--critical);
+            color: var(--critical-text);
+            border: 1px solid #f43f5e;
+        }
+
+        .badge-high {
+            background-color: var(--high);
+            color: var(--high-text);
+            border: 1px solid #ef4444;
+        }
+
+        .badge-success {
+            background-color: #064e3b;
+            color: #6ee7b7;
+        }
+
+        .badge-info {
+            background-color: #1e3a8a;
+            color: #93c5fd;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #0f172a;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .alert-box {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .alert-success {
+            background-color: #064e3b;
+            border: 1px solid #059669;
+            color: #ecfdf5;
+        }
+
+        .alert-error {
+            background-color: #7f1d1d;
+            border: 1px solid #dc2626;
+            color: #fef2f2;
+        }
+
+        .alert-info {
+            background-color: #1e3a8a;
+            border: 1px solid #2563eb;
+            color: #eff6ff;
+        }
+
+        .code-snippet {
+            font-family: monospace;
+            background: #090d16;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #e2e8f0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>SIEM Log Correlation Engine</h1>
+                <div class="subtitle">BCSSL Lab 07 &bull; Localhost Telemetry Ingest &bull; Rule-Based Detection</div>
+            </div>
+            <div class="top-links">
+                <a href="{{ kibana_url }}" target="_blank" class="btn btn-kibana">
+                    Open Kibana Dashboard &nearr;
+                </a>
+            </div>
+        </header>
+
+        {% if flash_message %}
+            <div class="alert-box alert-{{ flash_type or 'info' }}">
+                {{ flash_message }}
+            </div>
+        {% endif %}
+
+        <div class="grid grid-2">
+            <!-- Upload Panel -->
+            <div class="card">
+                <div class="card-title">
+                    <span>Ingest Log File</span>
+                    <span class="badge badge-info">Max 20MB</span>
+                </div>
+                <form action="/upload" method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="source_type">Log Source Type</label>
+                        <select name="source_type" id="source_type" required>
+                            <option value="linux_auth">Linux Auth (sshd, sudo, pam)</option>
+                            <option value="windows_security">Windows Security (Event IDs 4624, 4625, 4688 - JSON / CSV)</option>
+                            <option value="firewall">Firewall (UFW / iptables / Key-Value)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="file">Select File (.log, .txt, .json, .jsonl, .csv)</label>
+                        <input type="file" name="file" id="file" accept=".log,.txt,.json,.jsonl,.csv" required>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 18px;">
+                        <button type="submit" class="btn btn-primary" style="flex: 1;">
+                            Upload &amp; Correlate
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Pipeline Status & Actions -->
+            <div class="card">
+                <div class="card-title">
+                    <span>Pipeline Control</span>
+                    <span class="badge {% if es_connected %}badge-success{% else %}badge-critical{% endif %}">
+                        {{ es_mode }}
+                    </span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value">{{ events_count }}</div>
+                        <div class="stat-label">Events Indexed</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" style="color: #f87171;">{{ alerts_count }}</div>
+                        <div class="stat-label">Alerts Raised</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+                    <form action="/correlate" method="post">
+                        <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                            Run Correlation Rules
+                        </button>
+                    </form>
+
+                    <form action="/clear" method="post" onsubmit="return confirm('Clear all data from normalized-events and security-alerts indices?');">
+                        <button type="submit" class="btn btn-danger" style="width: 100%;">
+                            Clear Data (Indices Reset)
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Upload Ingestion Summary (if present) -->
+        {% if upload_summary %}
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-title">
+                <span>Upload Ingestion Summary</span>
+                <span class="badge badge-success">Completed</span>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value">{{ upload_summary.events_parsed }}</div>
+                    <div class="stat-label">Events Parsed</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" style="color: {% if upload_summary.skipped|length > 0 %}#fbbf24{% else %}#34d399{% endif %};">
+                        {{ upload_summary.skipped|length }}
+                    </div>
+                    <div class="stat-label">Lines Skipped</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" style="color: #f87171;">
+                        {{ upload_summary.alerts|length }}
+                    </div>
+                    <div class="stat-label">New Alerts Triggered</div>
+                </div>
+            </div>
+
+            {% if upload_summary.skipped|length > 0 %}
+            <div style="margin-top: 16px;">
+                <label style="color: #f59e0b; font-weight: 600;">Skipped Lines Report (Tolerant Ingestion)</label>
+                <div style="max-height: 180px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 80px;">Line #</th>
+                                <th>Reason</th>
+                                <th>Raw Excerpt</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in upload_summary.skipped %}
+                            <tr>
+                                <td>{{ item.line_number }}</td>
+                                <td style="color: #fca5a5;">{{ item.reason }}</td>
+                                <td><span class="code-snippet">{{ item.raw }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- SOC Triage Board Panels -->
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-title">
+                <span>SOC Triage Board &mdash; Detection Overview</span>
+                <span class="badge badge-info">3 Correlated Visualizations</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                <!-- Panel 1: Alerts by Severity -->
+                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px;">
+                        1. Alerts by Severity
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <div style="flex: 1; background-color: var(--critical); border: 1px solid #f43f5e; padding: 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 1.3rem; font-weight: bold; color: var(--critical-text);">{{ sev_counts.critical }}</div>
+                            <div style="font-size: 0.7rem; color: #fecdd3; text-transform: uppercase;">Critical</div>
+                        </div>
+                        <div style="flex: 1; background-color: var(--high); border: 1px solid #ef4444; padding: 10px; border-radius: 6px; text-align: center;">
+                            <div style="font-size: 1.3rem; font-weight: bold; color: var(--high-text);">{{ sev_counts.high }}</div>
+                            <div style="font-size: 0.7rem; color: #fee2e2; text-transform: uppercase;">High</div>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                        Correlated across temporal sliding windows (5 min / 2 min).
+                    </div>
+                </div>
+
+                <!-- Panel 2: Top Source IPs -->
+                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px;">
+                        2. Top Attacking Source IPs
+                    </div>
+                    {% if top_ips|length > 0 %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Source IP</th>
+                                <th style="text-align: right;">Alerts</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in top_ips %}
+                            <tr>
+                                <td><span class="code-snippet">{{ item.ip }}</span></td>
+                                <td style="text-align: right;"><span class="badge badge-critical">{{ item.count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div style="color: var(--text-muted); font-size: 0.8rem; padding: 10px 0;">No active IP anomalies recorded.</div>
+                    {% endif %}
+                </div>
+
+                <!-- Panel 3: Post-Logon Suspicious Hosts -->
+                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px;">
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px;">
+                        3. Suspicious Execution Hosts
+                    </div>
+                    {% if suspicious_hosts|length > 0 %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Host</th>
+                                <th>User</th>
+                                <th>Evidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sh in suspicious_hosts %}
+                            <tr>
+                                <td style="color: #60a5fa; font-weight: 500;">{{ sh.host }}</td>
+                                <td>{{ sh.user }}</td>
+                                <td><span class="code-snippet">2 events</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div style="color: var(--text-muted); font-size: 0.8rem; padding: 10px 0;">No post-logon process executions detected.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Generated Security Alerts -->
+        <div class="card">
+            <div class="card-title">
+                <span>Security Alerts (`security-alerts`)</span>
+                <span class="badge badge-critical">{{ alerts|length }} Total</span>
+            </div>
+
+            {% if alerts|length > 0 %}
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Rule Name</th>
+                            <th>MITRE ATT&amp;CK</th>
+                            <th>Source IP</th>
+                            <th>Target User</th>
+                            <th>Host</th>
+                            <th>Time Window (UTC)</th>
+                            <th>Evidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in alerts %}
+                        <tr>
+                            <td>
+                                <span class="badge badge-{{ a.severity|lower }}">
+                                    {{ a.severity }}
+                                </span>
+                            </td>
+                            <td style="font-weight: 600;">{{ a.rule_name }}</td>
+                            <td><span class="code-snippet">{{ a.mitre_technique }}</span></td>
+                            <td>{{ a.src_ip or '-' }}</td>
+                            <td>{{ a.user or '-' }}</td>
+                            <td>{{ a.host or '-' }}</td>
+                            <td style="font-size: 0.75rem; color: var(--text-muted);">
+                                {{ a.first_seen }} &rarr;<br>{{ a.last_seen }}
+                            </td>
+                            <td>
+                                <span class="badge badge-info">{{ a.evidence|length }} events</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                No alerts detected. Upload sample logs or trigger correlation to evaluate detection rules.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

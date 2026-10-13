@@ -1,0 +1,3 @@
+EventID,TimeCreated,Computer,TargetUserName,IpAddress,NewProcessName
+4624,2026-10-13T10:30:00Z,WIN-FINANCE,david,192.168.1.88,
+4688,2026-10-13T10:31:10Z,WIN-FINANCE,david,,powershell.exe
