@@ -1,13 +1,16 @@
 """
 Builder script to generate pure Lens-based Kibana 8.13 saved objects for:
 1. Data Views: security-alerts* and security-events*
-2. Lens Visualizations (lnsXY):
+2. Lens Visualizations (lnsXY & lnsDatatable):
    - alerts-by-severity (stacked bar: timestamp x severity)
-   - top-source-ips (horizontal bar: top src_ip)
-   - suspicious-execution-hosts (host & user breakdown filtered by rule)
-   - alerts-by-rule (breakdown by detection rule name)
-   - timeline-events-over-time (events histogram x event_type)
-   - events-by-source (events by log source)
+   - top-source-ips (data table: top src_ip by alert count)
+   - suspicious-execution-hosts (data table: host & user breakdown filtered by rule)
+   - alerts-by-rule (bar chart: alert count by detection rule)
+   - alerts-by-user (bar chart: alert count by target user)
+   - alerts-by-host (bar chart: alert count by affected host)
+   - recent-alerts-table (data table: rule, sev, user, ip, host, count)
+   - timeline-events-over-time (stacked bar: timestamp x event_type)
+   - events-by-source (bar chart: event count by log source)
 3. Saved Search: events-search (Discover search on security-events*)
 4. Dashboards:
    - SOC Triage Board (Security Overview)
@@ -22,6 +25,65 @@ NDJSON_PATH = Path(__file__).resolve().parent / "soc_triage_board.ndjson"
 
 ALERTS_DV_ID = "security-alerts-dataview"
 EVENTS_DV_ID = "security-events-dataview"
+
+
+def make_count_col(label: str = "Count"):
+    return {
+        "label": label,
+        "dataType": "number",
+        "operationType": "count",
+        "isBucketed": False,
+        "scale": "ratio",
+        "sourceField": "___records___",
+        "params": {
+            "emptyAsNull": False
+        }
+    }
+
+
+def make_date_histogram_col(source_field: str, label: str = "Timestamp"):
+    return {
+        "label": label,
+        "dataType": "date",
+        "operationType": "date_histogram",
+        "sourceField": source_field,
+        "isBucketed": True,
+        "scale": "interval",
+        "params": {
+            "interval": "auto",
+            "includeEmptyRows": True,
+            "dropPartials": False
+        }
+    }
+
+
+def make_terms_col(source_field: str, label: str, size: int = 10, order_by_col: str | None = None, alphabetical: bool = False):
+    if alphabetical:
+        order_by = {"type": "alphabetical"}
+        order_dir = "asc"
+    elif order_by_col:
+        order_by = {"type": "column", "columnId": order_by_col}
+        order_dir = "desc"
+    else:
+        order_by = {"type": "alphabetical"}
+        order_dir = "asc"
+    return {
+        "label": label,
+        "dataType": "string",
+        "operationType": "terms",
+        "scale": "ordinal",
+        "sourceField": source_field,
+        "isBucketed": True,
+        "params": {
+            "size": size,
+            "orderBy": order_by,
+            "orderDirection": order_dir,
+            "otherBucket": False,
+            "missingBucket": False,
+            "parentFormat": {"id": "terms"}
+        }
+    }
+
 
 objects = []
 
@@ -80,28 +142,13 @@ objects.append({
                 "formBased": {
                     "layers": {
                         "layer_1": {
-                            "columnOrder": ["col_date", "col_count", "col_severity"],
+                            "columnOrder": ["col_date", "col_severity", "col_count"],
                             "columns": {
-                                "col_date": {
-                                    "label": "Timestamp",
-                                    "operationType": "date_histogram",
-                                    "params": {"interval": "auto"},
-                                    "sourceField": "first_seen"
-                                },
-                                "col_count": {
-                                    "label": "Alert Count",
-                                    "operationType": "count"
-                                },
-                                "col_severity": {
-                                    "label": "Severity",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 5,
-                                        "orderBy": {"type": "alphabetical", "direction": "asc"}
-                                    },
-                                    "sourceField": "severity"
-                                }
-                            }
+                                "col_date": make_date_histogram_col("first_seen", "Timestamp"),
+                                "col_severity": make_terms_col("severity", "Severity", size=5, alphabetical=True),
+                                "col_count": make_count_col("Alert Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -111,7 +158,10 @@ objects.append({
             "visualization": {
                 "shape": "bars",
                 "isStacked": True,
+                "preferredSeriesType": "bar_stacked",
                 "legend": {"isVisible": True, "position": "right"},
+                "valueLabels": "hide",
+                "fittingFunction": "None",
                 "layers": [
                     {
                         "layerId": "layer_1",
@@ -148,20 +198,10 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_ip", "col_count"],
                             "columns": {
-                                "col_ip": {
-                                    "label": "Source IP",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 10,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "src_ip"
-                                },
-                                "col_count": {
-                                    "label": "Alert Count",
-                                    "operationType": "count"
-                                }
-                            }
+                                "col_ip": make_terms_col("src_ip", "Source IP", size=10, order_by_col="col_count"),
+                                "col_count": make_count_col("Alert Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -170,9 +210,10 @@ objects.append({
             "query": {"language": "kuery", "query": ""},
             "visualization": {
                 "layerId": "layer_1",
+                "layerType": "data",
                 "columns": [
-                    {"columnId": "col_ip"},
-                    {"columnId": "col_count"}
+                    {"columnId": "col_ip", "isTransposed": False},
+                    {"columnId": "col_count", "isTransposed": False}
                 ]
             }
         }
@@ -200,41 +241,24 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_host", "col_user", "col_count"],
                             "columns": {
-                                "col_host": {
-                                    "label": "Host",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 10,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "host"
-                                },
-                                "col_user": {
-                                    "label": "User",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 5,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "user"
-                                },
-                                "col_count": {
-                                    "label": "Alert Count",
-                                    "operationType": "count"
-                                }
-                            }
+                                "col_host": make_terms_col("host", "Host", size=10, order_by_col="col_count"),
+                                "col_user": make_terms_col("user", "User", size=5, order_by_col="col_count"),
+                                "col_count": make_count_col("Alert Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
             },
             "filters": [],
-            "query": {"language": "kuery", "query": "rule_name: \"Post-Logon Suspicious Execution\""},
+            "query": {"language": "kuery", "query": 'rule_name: "Post-Logon Suspicious Execution"'},
             "visualization": {
                 "layerId": "layer_1",
+                "layerType": "data",
                 "columns": [
-                    {"columnId": "col_host"},
-                    {"columnId": "col_user"},
-                    {"columnId": "col_count"}
+                    {"columnId": "col_host", "isTransposed": False},
+                    {"columnId": "col_user", "isTransposed": False},
+                    {"columnId": "col_count", "isTransposed": False}
                 ]
             }
         }
@@ -262,20 +286,10 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_rule", "col_count"],
                             "columns": {
-                                "col_rule": {
-                                    "label": "Rule Name",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 10,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "rule_name"
-                                },
-                                "col_count": {
-                                    "label": "Count",
-                                    "operationType": "count"
-                                }
-                            }
+                                "col_rule": make_terms_col("rule_name", "Rule Name", size=10, order_by_col="col_count"),
+                                "col_count": make_count_col("Alert Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -285,7 +299,10 @@ objects.append({
             "visualization": {
                 "shape": "bars",
                 "isStacked": False,
+                "preferredSeriesType": "bar",
                 "legend": {"isVisible": False, "position": "right"},
+                "valueLabels": "hide",
+                "fittingFunction": "None",
                 "layers": [
                     {
                         "layerId": "layer_1",
@@ -321,20 +338,10 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_user", "col_count"],
                             "columns": {
-                                "col_user": {
-                                    "label": "User",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 10,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "user"
-                                },
-                                "col_count": {
-                                    "label": "Alert Count",
-                                    "operationType": "count"
-                                }
-                            }
+                                "col_user": make_terms_col("user", "User", size=10, order_by_col="col_count"),
+                                "col_count": make_count_col("Alert Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -344,7 +351,10 @@ objects.append({
             "visualization": {
                 "shape": "bars",
                 "isStacked": False,
+                "preferredSeriesType": "bar",
                 "legend": {"isVisible": False, "position": "right"},
+                "valueLabels": "hide",
+                "fittingFunction": "None",
                 "layers": [
                     {
                         "layerId": "layer_1",
@@ -380,20 +390,10 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_host", "col_count"],
                             "columns": {
-                                "col_host": {
-                                    "label": "Host",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 10,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "host"
-                                },
-                                "col_count": {
-                                    "label": "Alert Count",
-                                    "operationType": "count"
-                                }
-                            }
+                                "col_host": make_terms_col("host", "Host", size=10, order_by_col="col_count"),
+                                "col_count": make_count_col("Alert Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -403,7 +403,10 @@ objects.append({
             "visualization": {
                 "shape": "bars",
                 "isStacked": False,
+                "preferredSeriesType": "bar",
                 "legend": {"isVisible": False, "position": "right"},
+                "valueLabels": "hide",
+                "fittingFunction": "None",
                 "layers": [
                     {
                         "layerId": "layer_1",
@@ -439,44 +442,14 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_rule", "col_sev", "col_user", "col_ip", "col_host", "col_count"],
                             "columns": {
-                                "col_rule": {
-                                    "label": "Rule Name",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 20,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "rule_name"
-                                },
-                                "col_sev": {
-                                    "label": "Severity",
-                                    "operationType": "terms",
-                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
-                                    "sourceField": "severity"
-                                },
-                                "col_user": {
-                                    "label": "User",
-                                    "operationType": "terms",
-                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
-                                    "sourceField": "user"
-                                },
-                                "col_ip": {
-                                    "label": "Source IP",
-                                    "operationType": "terms",
-                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
-                                    "sourceField": "src_ip"
-                                },
-                                "col_host": {
-                                    "label": "Host",
-                                    "operationType": "terms",
-                                    "params": {"size": 5, "orderBy": {"type": "alphabetical", "direction": "asc"}},
-                                    "sourceField": "host"
-                                },
-                                "col_count": {
-                                    "label": "Count",
-                                    "operationType": "count"
-                                }
-                            }
+                                "col_rule": make_terms_col("rule_name", "Rule Name", size=20, order_by_col="col_count"),
+                                "col_sev": make_terms_col("severity", "Severity", size=5, alphabetical=True),
+                                "col_user": make_terms_col("user", "User", size=5, alphabetical=True),
+                                "col_ip": make_terms_col("src_ip", "Source IP", size=5, alphabetical=True),
+                                "col_host": make_terms_col("host", "Host", size=5, alphabetical=True),
+                                "col_count": make_count_col("Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -485,13 +458,14 @@ objects.append({
             "query": {"language": "kuery", "query": ""},
             "visualization": {
                 "layerId": "layer_1",
+                "layerType": "data",
                 "columns": [
-                    {"columnId": "col_rule"},
-                    {"columnId": "col_sev"},
-                    {"columnId": "col_user"},
-                    {"columnId": "col_ip"},
-                    {"columnId": "col_host"},
-                    {"columnId": "col_count"}
+                    {"columnId": "col_rule", "isTransposed": False},
+                    {"columnId": "col_sev", "isTransposed": False},
+                    {"columnId": "col_user", "isTransposed": False},
+                    {"columnId": "col_ip", "isTransposed": False},
+                    {"columnId": "col_host", "isTransposed": False},
+                    {"columnId": "col_count", "isTransposed": False}
                 ]
             }
         }
@@ -517,28 +491,13 @@ objects.append({
                 "formBased": {
                     "layers": {
                         "layer_1": {
-                            "columnOrder": ["col_date", "col_count", "col_type"],
+                            "columnOrder": ["col_date", "col_type", "col_count"],
                             "columns": {
-                                "col_date": {
-                                    "label": "Timestamp",
-                                    "operationType": "date_histogram",
-                                    "params": {"interval": "auto"},
-                                    "sourceField": "timestamp"
-                                },
-                                "col_count": {
-                                    "label": "Event Count",
-                                    "operationType": "count"
-                                },
-                                "col_type": {
-                                    "label": "Event Type",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 5,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "event_type"
-                                }
-                            }
+                                "col_date": make_date_histogram_col("timestamp", "Timestamp"),
+                                "col_type": make_terms_col("event_type", "Event Type", size=5, order_by_col="col_count"),
+                                "col_count": make_count_col("Event Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -548,7 +507,10 @@ objects.append({
             "visualization": {
                 "shape": "bars",
                 "isStacked": True,
+                "preferredSeriesType": "bar_stacked",
                 "legend": {"isVisible": True, "position": "right"},
+                "valueLabels": "hide",
+                "fittingFunction": "None",
                 "layers": [
                     {
                         "layerId": "layer_1",
@@ -568,7 +530,7 @@ objects.append({
     ]
 })
 
-# 8. Lens: Events by Log Source
+# 11. Lens: Events by Log Source
 objects.append({
     "id": "events-by-source",
     "type": "lens",
@@ -585,20 +547,10 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_source", "col_count"],
                             "columns": {
-                                "col_source": {
-                                    "label": "Source",
-                                    "operationType": "terms",
-                                    "params": {
-                                        "size": 5,
-                                        "orderBy": {"type": "column", "columnId": "col_count", "direction": "desc"}
-                                    },
-                                    "sourceField": "source"
-                                },
-                                "col_count": {
-                                    "label": "Count",
-                                    "operationType": "count"
-                                }
-                            }
+                                "col_source": make_terms_col("source", "Source", size=5, order_by_col="col_count"),
+                                "col_count": make_count_col("Event Count")
+                            },
+                            "incompleteColumns": {}
                         }
                     }
                 }
@@ -608,7 +560,10 @@ objects.append({
             "visualization": {
                 "shape": "bars",
                 "isStacked": False,
+                "preferredSeriesType": "bar",
                 "legend": {"isVisible": False, "position": "right"},
+                "valueLabels": "hide",
+                "fittingFunction": "None",
                 "layers": [
                     {
                         "layerId": "layer_1",
@@ -627,7 +582,7 @@ objects.append({
     ]
 })
 
-# 9. Saved Search: events-search (Discover search on security-events*)
+# 12. Saved Search: events-search (Discover search on security-events*)
 objects.append({
     "id": "events-search",
     "type": "search",
@@ -651,7 +606,7 @@ objects.append({
     ]
 })
 
-# 10. Dashboard: SOC Triage Board (Security Overview)
+# 13. Dashboard: SOC Triage Board (Security Overview)
 objects.append({
     "id": "soc-triage-board-dashboard",
     "type": "dashboard",
@@ -696,7 +651,7 @@ objects.append({
     ]
 })
 
-# 11. Dashboard: Alerts Dashboard
+# 14. Dashboard: Alerts Dashboard
 objects.append({
     "id": "alerts-dashboard",
     "type": "dashboard",
@@ -762,7 +717,7 @@ objects.append({
     ]
 })
 
-# 12. Dashboard: Timeline Analysis Dashboard
+# 15. Dashboard: Timeline Analysis Dashboard
 objects.append({
     "id": "timeline-analysis-dashboard",
     "type": "dashboard",
