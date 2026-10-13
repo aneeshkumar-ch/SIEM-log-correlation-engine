@@ -256,3 +256,52 @@ def test_scenario5_sensitive_file_and_lateral_movement(mock_es):
     assert "Sensitive File Access" in rule_names
     assert "Suspected Lateral Movement" in rule_names
 
+
+def test_scenario3_privilege_activity_benign(mock_es):
+    """Asserts Scenario 3 remains quiet on standard logon without special privileges."""
+    import json
+    normal_logon = json.dumps({
+        "EventID": 4624,
+        "TimeCreated": "2026-10-13T12:00:00Z",
+        "Computer": "WIN-DC01",
+        "TargetUserName": "svc_backup"
+    })
+    events, _ = normalizer.normalize_content(normal_logon, "windows_sysmon")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    priv_alerts = [a for a in alerts if a["rule_name"] == "Privilege-Related Activity"]
+    assert len(priv_alerts) == 0, f"Expected 0 privilege alerts on normal logon, got {priv_alerts}"
+
+
+def test_scenario4_network_benign(mock_es):
+    """Asserts Scenario 4 remains quiet on allowed traffic below port/volume thresholds."""
+    lines = [
+        "Oct 13 12:10:00 fw01 kernel: [UFW ALLOW] IN=eth0 SRC=10.0.0.15 DST=10.0.0.50 PROTO=TCP SPT=4001 DPT=443",
+        "Oct 13 12:10:15 fw01 kernel: [UFW ALLOW] IN=eth0 SRC=10.0.0.15 DST=10.0.0.50 PROTO=TCP SPT=4002 DPT=443"
+    ]
+    events, _ = normalizer.normalize_content("\n".join(lines), "network_firewall")
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    net_alerts = [a for a in alerts if "Network" in a["rule_name"] or "Burst" in a["rule_name"]]
+    assert len(net_alerts) == 0, f"Expected 0 network alerts on normal traffic, got {net_alerts}"
+
+
+def test_scenario5_sensitive_file_and_lateral_movement_benign(mock_es):
+    """Asserts Scenario 5 remains quiet on non-sensitive file access and single-host sessions."""
+    # Benign file access
+    normal_file_log = "type=SYSCALL msg=audit(1697191230.100:10): arch=c000003e syscall=59 success=yes exit=0 auid=1002 uid=1002 exe=\"/usr/bin/cat\" name=\"/var/log/application.log\" host=srv-shadow"
+    ev1, _ = normalizer.normalize_content(normal_file_log, "linux_auditd")
+    bulk_index_events(mock_es, ev1, config.INDEX_EVENTS)
+
+    # Single host logon (no lateral movement)
+    import json
+    single_host = json.dumps({"EventID": 4624, "TimeCreated": "2026-10-13T12:20:00Z", "Computer": "HOST-A", "TargetUserName": "charlie"})
+    ev2, _ = normalizer.normalize_content(single_host, "windows_sysmon")
+    bulk_index_events(mock_es, ev2, config.INDEX_EVENTS)
+
+    alerts = correlate.run_correlation(mock_es)
+    assert not any(a["rule_name"] in ("Sensitive File Access", "Suspected Lateral Movement") for a in alerts)
+
+

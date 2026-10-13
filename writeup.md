@@ -96,14 +96,32 @@ The correlation engine executes sliding-window evaluations across chronologicall
 
 ## 4. False-Positive Tuning & Operational Safeguards
 
-1. **Sliding Window Calibration:**
-   A threshold of 5 failures within 10 minutes distinguishes human mistyping (typically 1–3 attempts) from automated brute-force tools (Hydra, Medusa, spraying scripts).
-2. **Administrator Allowlisting:**
-   System administrators legitimately run PowerShell and batch files for routine maintenance. The `ADMIN_ACCOUNTS` filter (`Administrator`, `root`, `SYSTEM`, etc.) ensures that benign admin tasks do not trigger False Positives, focusing alerts on non-admin Living-off-the-Land abuse.
-3. **Anti-Flooding Alert Deduplication:**
-   Alerts use deterministic hashing on composite tuples:
-   $$\text{alert\_id} = \text{sha256}(\text{rule\_name} + \text{source\_ip} + \text{host} + \text{first\_seen} + \text{last\_seen})$$
-   Repeated correlation executions upsert on `_id`, updating evidence IDs without spamming redundant alert rows.
+The engine applies explicit tuning decisions for each of the 5 detection rules to minimize alert fatigue while maintaining high detection sensitivity:
+
+1. **Rule 1: Brute Force Authentication (T1110 / T1110.001)**
+   * *Threshold:* $\ge 5$ failed logons within a 10-minute sliding window ($600\text{s}$); escalates to Critical upon subsequent success.
+   * *False-Positive Tuning Decision:* Enforcing a threshold of 5 attempts within 10 minutes prevents false alerts from routine human typing mistakes (which rarely exceed 1–3 attempts). Additionally, known internal vulnerability scanners and bastion jump hosts can be exempted via `ALLOWLIST_IPS`.
+
+2. **Rule 2: Suspicious Process Execution (T1059.001 / T1059)**
+   * *Threshold:* Execution of `powershell.exe` or `cmd.exe` within 2 minutes ($120\text{s}$) of interactive logon, or execution of high-risk utilities (`certutil`, `vssadmin`, `whoami`).
+   * *False-Positive Tuning Decision:* System administrators legitimately execute PowerShell for scheduled tasks and system administration. The `ADMIN_ACCOUNTS` filter (`Administrator`, `root`, `SYSTEM`, etc.) suppresses alerts on routine administrative scripting. Furthermore, shells launched outside the post-logon 2-minute window are suppressed unless spawned from anomalous parent processes (`winword.exe`, `excel.exe`, web daemons) or executing high-risk recon binaries.
+
+3. **Rule 3: Privilege-Related Activity (T1548 / T1078)**
+   * *Threshold:* Windows Event 4672 (`SpecialPrivilegesAssigned`) or Linux `sudo`/`su` elevation to root.
+   * *False-Positive Tuning Decision:* Standard administrative accounts and routine Windows core services generate high volumes of privilege assignments during normal operating boot and schedule runs. The rule verifies whether the account belongs to `ADMIN_ACCOUNTS`; routine administrative logons are filtered, focusing alerts strictly on non-admin users or unapproved service accounts assuming elevated privileges.
+
+4. **Rule 4: Network-Based Suspicious Activity (T1046)**
+   * *Threshold:* $\ge 5$ distinct destination ports/hosts or $\ge 5$ blocked connection attempts within a 5-minute sliding window ($300\text{s}$).
+   * *False-Positive Tuning Decision:* Web browsers and microservices routinely open multiple parallel outbound connections to web servers on standard ports (80/443). Requiring $\ge 5$ *distinct* destination ports or blocked states within 5 minutes eliminates false positives from routine HTTP browsing, while `ALLOWLIST_IPS` excludes authorized corporate vulnerability scanners.
+
+5. **Rule 5: Additional Security Events — Sensitive Files & Lateral Movement (T1003.008 / T1021)**
+   * *Threshold:* Access to credential files (`/etc/shadow`, `/etc/passwd`, `SAM`, `ntds.dit`) or $\ge 2$ distinct target hosts within 10 minutes ($600\text{s}$).
+   * *False-Positive Tuning Decision:* System authentication daemons (`sshd`, `pam`) legitimately access authentication files during normal user login operations. The rule isolates non-root and userland syscall invocations (e.g. `cat`, `python`, `cp`) targeting shadow files. For lateral movement, requiring $\ge 2$ *distinct* hosts prevents false positives from multiple concurrent sessions or reconnects to the same machine.
+
+6. **Anti-Flooding Alert Deduplication & Idempotence**
+   * Alerts use deterministic hashing on composite tuples:
+     $$\text{alert\_id} = \text{sha256}(\text{rule\_name} + \text{source\_ip} + \text{host} + \text{first\_seen} + \text{last\_seen})$$
+   * Repeated correlation cycles upsert on `_id`, updating evidence IDs without creating redundant alert records.
 
 ---
 

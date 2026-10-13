@@ -299,21 +299,22 @@ def sanitize_doc_ips(doc: Dict[str, Any]) -> Dict[str, Any]:
     return cleaned
 
 
-def initialize_indices(es: Any) -> None:
+def initialize_indices(es: Any, events_index: str = config.INDEX_EVENTS, alerts_index: str = config.INDEX_ALERTS) -> None:
     """Ensure security-events and security-alerts indices exist with mappings."""
     try:
-        if not es.indices.exists(index=config.INDEX_EVENTS):
-            es.indices.create(index=config.INDEX_EVENTS, mappings=EVENTS_MAPPING)
-            logger.info("Created index %s", config.INDEX_EVENTS)
+        if not es.indices.exists(index=events_index):
+            es.indices.create(index=events_index, mappings=EVENTS_MAPPING)
+            logger.info("Created index %s", events_index)
     except Exception as e:
-        logger.warning("Could not create/verify index %s: %s", config.INDEX_EVENTS, e)
+        logger.warning("Could not create/verify index %s: %s", events_index, e)
 
     try:
-        if not es.indices.exists(index=config.INDEX_ALERTS):
-            es.indices.create(index=config.INDEX_ALERTS, mappings=ALERTS_MAPPING)
-            logger.info("Created index %s", config.INDEX_ALERTS)
+        if not es.indices.exists(index=alerts_index):
+            es.indices.create(index=alerts_index, mappings=ALERTS_MAPPING)
+            logger.info("Created index %s", alerts_index)
     except Exception as e:
-        logger.warning("Could not create/verify index %s: %s", config.INDEX_ALERTS, e)
+        logger.warning("Could not create/verify index %s: %s", alerts_index, e)
+
 
 
 def bulk_index_events(es: Any, documents: List[Dict[str, Any]], index_name: str) -> int:

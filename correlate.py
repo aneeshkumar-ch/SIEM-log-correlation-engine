@@ -43,26 +43,26 @@ def is_suspicious_process(process_name: Optional[str]) -> bool:
     return p in [sp.lower() for sp in config.SUSPICIOUS_PROCESSES]
 
 
-def run_correlation(es: Any = None) -> List[Dict[str, Any]]:
-    """Runs all 5 correlation rules over events in 'security-events' index.
-    Writes scored, deduplicated alerts into 'security-alerts' index.
+def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, alerts_index: str = config.INDEX_ALERTS) -> List[Dict[str, Any]]:
+    """Runs all 5 correlation rules over events in events_index.
+    Writes scored, deduplicated alerts into alerts_index.
     Returns list of generated alert documents.
     """
     if es is None:
         es = get_es_client()
 
-    initialize_indices(es)
+    initialize_indices(es, events_index=events_index, alerts_index=alerts_index)
 
-    # Fetch all normalized events from security-events
+    # Fetch all normalized events from events_index
     res = es.search(
-        index=config.INDEX_EVENTS,
+        index=events_index,
         query={"match_all": {}},
         sort=[{"timestamp": {"order": "asc"}}],
         size=10000
     )
     raw_hits = res.get("hits", {}).get("hits", [])
     if not raw_hits:
-        logger.info("No events found in %s to correlate", config.INDEX_EVENTS)
+        logger.info("No events found in %s to correlate", events_index)
         return []
 
     events = []
@@ -472,7 +472,7 @@ def run_correlation(es: Any = None) -> List[Dict[str, Any]]:
         clean_alert = sanitize_doc_ips(alert)
         # Index with deterministic ID
         es.index(
-            index=config.INDEX_ALERTS,
+            index=alerts_index,
             id=a_id,
             document=clean_alert,
             refresh=True
@@ -481,9 +481,9 @@ def run_correlation(es: Any = None) -> List[Dict[str, Any]]:
         indexed_alerts.append(alert)
 
     try:
-        es.indices.refresh(index=config.INDEX_ALERTS)
+        es.indices.refresh(index=alerts_index)
     except Exception:
         pass
 
-    logger.info("Correlation cycle completed: %d alert(s) stored in %s", len(indexed_alerts), config.INDEX_ALERTS)
+    logger.info("Correlation cycle completed: %d alert(s) stored in %s", len(indexed_alerts), alerts_index)
     return indexed_alerts
