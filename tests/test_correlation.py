@@ -311,6 +311,10 @@ def test_scenario5_sensitive_file_and_lateral_movement(mock_es):
     assert "Sensitive File Access" in rule_names
     assert "Suspected Lateral Movement" in rule_names
 
+    lat_alert = next(a for a in alerts if a["rule_name"] == "Suspected Lateral Movement")
+    assert isinstance(lat_alert["host"], list)
+    assert set(lat_alert["host"]) == {"HOST-A", "HOST-B"}
+
 
 def test_scenario3_privilege_activity_benign(mock_es):
     """Asserts Scenario 3 remains quiet on standard logon without special privileges."""
@@ -384,6 +388,39 @@ def test_scenario4_benign_multiple_allowed_hosts_single_port(mock_es):
 
     net_alerts = [a for a in alerts if "Network" in a["rule_name"] or "Burst" in a["rule_name"]]
     assert len(net_alerts) == 0, f"Expected 0 alerts for 10 allowed HTTPS connections, got: {net_alerts}"
+
+
+def test_rule4b_benign_medium_severity_non_network_events(mock_es):
+    """Asserts that 6 medium-severity non-network events (Windows/Linux) from one source IP in 5m
+    must NOT trigger Rule 4B (Burst of Blocked Connections), as blocked bursts apply only to Network events."""
+    events = []
+    for i in range(6):
+        doc = {
+            "timestamp": f"2026-10-13T14:00:{i*10:02d}Z",
+            "source": "Windows",
+            "source_type": "windows_sysmon",
+            "event_type": "process_create",
+            "user": "standard_user",
+            "source_ip": "192.168.1.75",
+            "src_ip": "192.168.1.75",
+            "destination_ip": None,
+            "dest_ip": None,
+            "destination_port": None,
+            "process_name": "calc.exe",
+            "severity": "medium",  # Medium severity, non-network
+            "host": "WIN-WS01",
+            "raw_log": f"Windows event {i} calc.exe medium severity",
+            "raw": f"Windows event {i} calc.exe medium severity",
+            "ip_tags": ["private", "internal"]
+        }
+        events.append({"_id": f"win_med_test_{i}", "_source": doc})
+
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+    alerts = correlate.run_correlation(mock_es)
+
+    rule4b_alerts = [a for a in alerts if a["rule_name"] == "Burst of Blocked Connections"]
+    assert len(rule4b_alerts) == 0, f"Rule 4B fired on non-network medium severity events: {rule4b_alerts}"
+
 
 
 

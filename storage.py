@@ -216,7 +216,10 @@ class MockElasticsearch:
                     actual_val = doc.get("source_ip")
                 elif actual_val is None and field == "source_ip":
                     actual_val = doc.get("src_ip")
-                if str(actual_val) != str(expected_val):
+                if isinstance(actual_val, list):
+                    if str(expected_val) not in [str(x) for x in actual_val]:
+                        return False
+                elif str(actual_val) != str(expected_val):
                     return False
             return True
 
@@ -224,7 +227,10 @@ class MockElasticsearch:
         if "terms" in query:
             for field, expected_list in query["terms"].items():
                 actual_val = doc.get(field)
-                if str(actual_val) not in [str(x) for x in expected_list]:
+                if isinstance(actual_val, list):
+                    if not any(str(x) in [str(y) for y in expected_list] for x in actual_val):
+                        return False
+                elif str(actual_val) not in [str(x) for x in expected_list]:
                     return False
             return True
 

@@ -99,11 +99,11 @@ The correlation engine executes sliding-window evaluations across chronologicall
 The engine applies explicit tuning decisions for each of the 5 detection rules to minimize alert fatigue while maintaining high detection sensitivity:
 
 1. **Rule 1: Brute Force Authentication (T1110 / T1110.001)**
-   * *Threshold:* $\ge 5$ failed logons within a 10-minute sliding window ($600\text{s}$); escalates to Critical upon subsequent success.
+   * *Threshold:* $\ge 5$ failed logons within a 10-minute sliding window ($600\text{s}$); escalates to Critical upon subsequent success. *(Note: The brute-force window is 10 minutes, changed from the brief's 5 minutes to accommodate realistic slow brute-force and credential stuffing campaigns, configurable via `BRUTE_FORCE_WINDOW_MINUTES` in `config.py`).*
    * *False-Positive Tuning Decision:* Enforcing a threshold of 5 attempts within 10 minutes prevents false alerts from routine human typing mistakes (which rarely exceed 1–3 attempts). Additionally, known internal vulnerability scanners and bastion jump hosts can be exempted via `ALLOWLIST_IPS`.
 
 2. **Rule 2: Suspicious Process Execution (T1059.001 / T1059)**
-   * *Threshold:* Execution of `powershell.exe` or `cmd.exe` within 2 minutes ($120\text{s}$) of interactive logon, or execution of high-risk utilities (`certutil`, `vssadmin`, `whoami`).
+   * *Threshold:* Execution of `powershell.exe` or `cmd.exe` within 2 minutes ($120\text{s}$) of interactive logon (`POST_LOGON_WINDOW_MINUTES = 2`), or execution of high-risk utilities (`certutil`, `vssadmin`, `whoami`).
    * *False-Positive Tuning Decision:* System administrators legitimately execute PowerShell for scheduled tasks and system administration. The `ADMIN_ACCOUNTS` filter (`Administrator`, `root`, `SYSTEM`, etc.) suppresses alerts on routine administrative scripting. Furthermore, shells launched outside the post-logon 2-minute window are suppressed unless spawned from anomalous parent processes (`winword.exe`, `excel.exe`, web daemons) or executing high-risk recon binaries.
 
 3. **Rule 3: Privilege-Related Activity (T1548 / T1078)**
@@ -111,12 +111,12 @@ The engine applies explicit tuning decisions for each of the 5 detection rules t
    * *False-Positive Tuning Decision:* Standard administrative accounts and routine Windows core services generate high volumes of privilege assignments during normal operating boot and schedule runs. The rule verifies whether the account belongs to `ADMIN_ACCOUNTS`; routine administrative logons are filtered, focusing alerts strictly on non-admin users or unapproved service accounts assuming elevated privileges.
 
 4. **Rule 4: Network-Based Suspicious Activity (T1046)**
-   * *Threshold:* A single source IP probing $\ge 5$ distinct destination ports on a single destination host, or generating $\ge 5$ blocked connection attempts within a 5-minute sliding window ($300\text{s}$).
-   * *False-Positive Tuning Decision:* Clients and web browsers routinely open multiple parallel outbound connections to distinct web servers on standard ports (80/443). By evaluating distinct destination ports on a per-destination-host basis (`ports_per_dest[dest] >= 5`) rather than aggregating across multiple hosts, benign web browsing across multiple sites is never misclassified as a port scan. Bursts of blocked connections are also tracked to detect brute reconnaissance.
+   * *Threshold:* A single source IP probing $\ge 5$ distinct destination ports on a single destination host, or generating $\ge 5$ blocked connection attempts within a 5-minute sliding window ($300\text{s}$, `NETWORK_SCAN_WINDOW_MINUTES = 5`).
+   * *False-Positive Tuning Decision:* Clients and web browsers routinely open multiple parallel outbound connections to distinct web servers on standard ports (80/443). By evaluating distinct destination ports on a per-destination-host basis (`ports_per_dest[dest] >= 5`) rather than aggregating across multiple hosts, benign web browsing across multiple sites is never misclassified as a port scan. Furthermore, blocked connection tracking strictly filters for `source == "Network"` so non-network events with medium severity can never count as blocked connections.
 
 5. **Rule 5: Additional Security Events — Sensitive Files & Lateral Movement (T1003.008 / T1021)**
-   * *Threshold:* Access to credential files (`/etc/shadow`, `SAM`, `ntds.dit`) or $\ge 2$ distinct target hosts within 10 minutes ($600\text{s}$).
-   * *False-Positive Tuning Decision:* Standard system processes and user utilities (e.g. `ls`, `id`, `finger`, `bash`) legitimately and continuously read `/etc/passwd` to resolve user names and group IDs. Therefore, `/etc/passwd` was explicitly excluded from the sensitive files detection list to avoid severe alert fatigue, restricting file access alerts strictly to actual credential repositories (`/etc/shadow`, `SAM`, `ntds.dit`, `/etc/sudoers`). For lateral movement, requiring $\ge 2$ distinct hosts prevents false positives from multiple concurrent sessions or reconnects to the same machine.
+   * *Threshold:* Access to credential files (`/etc/shadow`, `SAM`, `ntds.dit`) or $\ge 2$ distinct target hosts within 10 minutes ($600\text{s}$, `LATERAL_MOVEMENT_WINDOW_MINUTES = 10`).
+   * *False-Positive Tuning Decision:* Standard system processes and user utilities (e.g. `ls`, `id`, `finger`, `bash`) legitimately and continuously read `/etc/passwd` to resolve user names and group IDs. Therefore, `/etc/passwd` was explicitly excluded from the sensitive files detection list to avoid severe alert fatigue, restricting file access alerts strictly to actual credential repositories (`/etc/shadow`, `SAM`, `ntds.dit`, `/etc/sudoers`). For lateral movement, requiring $\ge 2$ distinct hosts prevents false positives from multiple concurrent sessions or reconnects to the same machine; impacted hosts are stored as a multi-value keyword list for per-host SOC visibility.
 
 6. **Anti-Flooding Alert Deduplication & Idempotence**
    * Alerts use deterministic hashing on composite tuples:

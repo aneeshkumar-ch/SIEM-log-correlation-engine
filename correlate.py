@@ -18,9 +18,13 @@ def parse_iso_utc(ts_str: str) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def compute_alert_id(rule_name: str, src_ip: Optional[str], host: Optional[str], first_seen: str, last_seen: str) -> str:
+def compute_alert_id(rule_name: str, src_ip: Optional[str], host: Any, first_seen: str, last_seen: str) -> str:
     """Computes a deterministic hash ID for deduplicating identical alerts."""
-    key = f"{rule_name}:{src_ip or ''}:{host or ''}:{first_seen}:{last_seen}"
+    if isinstance(host, list):
+        host_str = ",".join(sorted(str(h) for h in host))
+    else:
+        host_str = str(host) if host is not None else ""
+    key = f"{rule_name}:{src_ip or ''}:{host_str}:{first_seen}:{last_seen}"
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
 
 
@@ -311,7 +315,7 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
     # =========================================================================
     net_events_by_src: Dict[str, List[Dict[str, Any]]] = {}
     for ev in events:
-        if ev.get("source_type") in ("network_firewall", "firewall") or ev.get("event_type") == "network_connection":
+        if ev.get("source") == "Network" or ev.get("source_type") in ("network_firewall", "firewall"):
             s_ip = ev.get("source_ip") or ev.get("src_ip")
             if s_ip and s_ip not in config.ALLOWLIST_IPS:
                 net_events_by_src.setdefault(s_ip, []).append(ev)
@@ -363,8 +367,12 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
                 i = j
                 continue
 
-            # 4B: Bursts of blocked connections >= threshold
-            blocked_in_window = [w for w in window_net if str(w.get("action", "")).upper() == "BLOCK" or str(w.get("severity", "")).lower() == "medium"]
+            # 4B: Bursts of blocked connections >= threshold (Network/Firewall events only)
+            blocked_in_window = [
+                w for w in window_net
+                if (w.get("source") == "Network" or w.get("source_type") in ("network_firewall", "firewall"))
+                and (str(w.get("action", "")).upper() == "BLOCK" or str(w.get("severity", "")).lower() == "medium")
+            ]
             if len(blocked_in_window) >= config.BLOCKED_BURST_THRESHOLD:
                 alert_doc = {
                     "rule_name": "Burst of Blocked Connections",
@@ -441,7 +449,7 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
                 window_evs.append(u_evs[j])
                 j += 1
 
-            distinct_hosts = {w.get("host") for w in window_evs if w.get("host")}
+            distinct_hosts = sorted(list({w.get("host") for w in window_evs if w.get("host")}))
             if len(distinct_hosts) >= config.LATERAL_MOVEMENT_HOST_THRESHOLD:
                 alert_doc = {
                     "rule_name": "Suspected Lateral Movement",
@@ -449,12 +457,12 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
                     "source_ip": u_evs[i].get("source_ip") or u_evs[i].get("src_ip"),
                     "src_ip": u_evs[i].get("source_ip") or u_evs[i].get("src_ip"),
                     "user": u,
-                    "host": ", ".join(sorted(distinct_hosts)),
+                    "host": distinct_hosts,
                     "evidence": [w["_id"] for w in window_evs],
                     "first_seen": u_evs[i]["timestamp"],
                     "last_seen": window_evs[-1]["timestamp"],
                     "mitre_technique": "T1021",
-                    "description": f"User {u} logged on to {len(distinct_hosts)} distinct hosts ({', '.join(sorted(distinct_hosts))}) within {config.LATERAL_MOVEMENT_WINDOW_MINUTES}m",
+                    "description": f"User {u} logged on to {len(distinct_hosts)} distinct hosts ({', '.join(distinct_hosts)}) within {config.LATERAL_MOVEMENT_WINDOW_MINUTES}m",
                     "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 }
                 alerts.append(alert_doc)
