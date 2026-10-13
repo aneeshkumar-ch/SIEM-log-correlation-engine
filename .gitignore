@@ -16,6 +16,12 @@ env/
 # Uploaded log files (Passive Ingestion: do not commit uploaded telemetry)
 uploads/*
 !uploads/.gitkeep
+incoming/*
+!incoming/.gitkeep
+sample_logs/*
+!sample_logs/.gitkeep
+investigations/*
+!investigations/.gitkeep
 
 # Portable Stack binaries, runtimes, Elastic indices data, logs, and PIDs
 stack/

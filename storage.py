@@ -12,13 +12,23 @@ logger = logging.getLogger(__name__)
 EVENTS_MAPPING = {
     "properties": {
         "timestamp": {"type": "date"},
-        "host": {"type": "keyword"},
-        "source_type": {"type": "keyword"},
+        "source": {"type": "keyword"},
+        "source_type": {"type": "keyword"},  # compatibility
         "event_type": {"type": "keyword"},
         "user": {"type": "keyword"},
-        "src_ip": {"type": "keyword"},
+        "source_ip": {"type": "ip"},
+        "src_ip": {"type": "keyword"},       # compatibility string
+        "destination_ip": {"type": "ip"},
+        "dest_ip": {"type": "keyword"},      # compatibility string
+        "destination_port": {"type": "integer"},
         "process_name": {"type": "keyword"},
-        "raw": {"type": "text"}
+        "severity": {"type": "keyword"},
+        "host": {"type": "keyword"},
+        "raw_log": {"type": "text"},
+        "raw": {"type": "text"},              # compatibility text
+        "ip_tags": {"type": "keyword"},
+        "action": {"type": "keyword"},
+        "file_path": {"type": "keyword"}
     }
 }
 
@@ -26,13 +36,16 @@ ALERTS_MAPPING = {
     "properties": {
         "rule_name": {"type": "keyword"},
         "severity": {"type": "keyword"},
-        "src_ip": {"type": "keyword"},
+        "source_ip": {"type": "ip"},
+        "src_ip": {"type": "keyword"},       # compatibility string
+        "destination_ip": {"type": "ip"},
         "user": {"type": "keyword"},
         "host": {"type": "keyword"},
         "evidence": {"type": "keyword"},
         "first_seen": {"type": "date"},
         "last_seen": {"type": "date"},
         "mitre_technique": {"type": "keyword"},
+        "description": {"type": "text"},
         "created_at": {"type": "date"}
     }
 }
@@ -199,6 +212,10 @@ class MockElasticsearch:
             for field, expected in query["term"].items():
                 expected_val = expected.get("value") if isinstance(expected, dict) else expected
                 actual_val = doc.get(field)
+                if actual_val is None and field == "src_ip":
+                    actual_val = doc.get("source_ip")
+                elif actual_val is None and field == "source_ip":
+                    actual_val = doc.get("src_ip")
                 if str(actual_val) != str(expected_val):
                     return False
             return True
@@ -261,8 +278,29 @@ def get_es_client(use_mock: Optional[bool] = None) -> Any:
     return _mock_instance
 
 
+import ipaddress
+
+
+def sanitize_doc_ips(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Sanitize IP fields so Elasticsearch ip mapping does not reject invalid strings."""
+    cleaned = copy.deepcopy(doc)
+    for ip_field in ("source_ip", "destination_ip"):
+        val = cleaned.get(ip_field)
+        if val is not None:
+            val_str = str(val).strip()
+            if not val_str or val_str in ("-", "unknown", "none"):
+                cleaned[ip_field] = None
+            else:
+                try:
+                    ipaddress.ip_address(val_str)
+                    cleaned[ip_field] = val_str
+                except ValueError:
+                    cleaned[ip_field] = None
+    return cleaned
+
+
 def initialize_indices(es: Any) -> None:
-    """Ensure normalized-events and security-alerts indices exist with mappings."""
+    """Ensure security-events and security-alerts indices exist with mappings."""
     try:
         if not es.indices.exists(index=config.INDEX_EVENTS):
             es.indices.create(index=config.INDEX_EVENTS, mappings=EVENTS_MAPPING)
@@ -286,14 +324,19 @@ def bulk_index_events(es: Any, documents: List[Dict[str, Any]], index_name: str)
     if not documents:
         return 0
 
+    sanitized_docs = [
+        {"_id": doc["_id"], "_source": sanitize_doc_ips(doc["_source"])}
+        for doc in documents
+    ]
+
     if isinstance(es, MockElasticsearch):
         # Mock bulk
         operations = []
-        for doc in documents:
+        for doc in sanitized_docs:
             operations.append({"index": {"_index": index_name, "_id": doc["_id"]}})
             operations.append(doc["_source"])
         es.bulk(operations=operations)
-        return len(documents)
+        return len(sanitized_docs)
 
     # Real Elasticsearch bulk
     actions = [
@@ -302,7 +345,7 @@ def bulk_index_events(es: Any, documents: List[Dict[str, Any]], index_name: str)
             "_id": doc["_id"],
             "_source": doc["_source"]
         }
-        for doc in documents
+        for doc in sanitized_docs
     ]
     success_count, _ = es_bulk(es, actions, refresh=True)
     return success_count

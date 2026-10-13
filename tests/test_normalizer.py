@@ -123,3 +123,78 @@ def test_deterministic_id():
     ev1, _ = normalizer.normalize_content(log, "linux_auth")
     ev2, _ = normalizer.normalize_content(log, "linux_auth")
     assert ev1[0]["_id"] == ev2[0]["_id"]
+
+
+def test_windows_sysmon_events():
+    events_raw = "\n".join([
+        json.dumps({
+            "EventID": 1,
+            "UtcTime": "2026-10-13T10:30:00Z",
+            "Computer": "WIN-SRV02",
+            "User": "victim_user",
+            "Image": "C:\\Windows\\System32\\cmd.exe"
+        }),
+        json.dumps({
+            "EventID": 3,
+            "UtcTime": "2026-10-13T10:30:05Z",
+            "Computer": "WIN-SRV02",
+            "SourceIp": "192.168.1.50",
+            "DestinationIp": "10.0.0.99",
+            "DestinationPort": 445
+        }),
+        json.dumps({
+            "EventID": 4672,
+            "TimeCreated": "2026-10-13T10:30:10Z",
+            "Computer": "WIN-SRV02",
+            "TargetUserName": "admin_user"
+        })
+    ])
+    events, skipped = normalizer.normalize_content(events_raw, "windows_sysmon")
+    assert len(events) == 3
+    assert len(skipped) == 0
+
+    e1 = events[0]["_source"]
+    assert e1["source"] == "Windows"
+    assert e1["event_type"] == "process_create"
+    assert e1["process_name"] == "cmd.exe"
+    assert e1["severity"] == "medium"
+
+    e2 = events[1]["_source"]
+    assert e2["source"] == "Windows"
+    assert e2["event_type"] == "network_connection"
+    assert e2["source_ip"] == "192.168.1.50"
+    assert e2["destination_ip"] == "10.0.0.99"
+    assert e2["destination_port"] == 445
+
+    e3 = events[2]["_source"]
+    assert e3["source"] == "Windows"
+    assert e3["event_type"] == "privilege_escalation"
+    assert e3["severity"] == "high"
+
+
+def test_linux_auditd_syscall_and_file_access():
+    audit_log = "type=SYSCALL msg=audit(1697191230.123:456): arch=c000003e syscall=59 success=yes exit=0 auid=1000 uid=0 euid=0 exe=\"/usr/bin/cat\" comm=\"cat\" name=\"/etc/shadow\" host=linux-prod"
+    events, skipped = normalizer.normalize_content(audit_log, "linux_auditd")
+    assert len(events) == 1
+    assert len(skipped) == 0
+    ev = events[0]["_source"]
+    assert ev["source"] == "Linux"
+    assert ev["event_type"] == "file_access"
+    assert ev["process_name"] == "cat"
+    assert ev["severity"] == "high"
+    assert ev["file_path"] == "/etc/shadow"
+    assert ev["host"] == "linux-prod"
+
+
+def test_network_firewall_source_and_tagging():
+    log = "Oct 13 10:15:30 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.5 DST=192.168.1.200 PROTO=TCP SPT=44321 DPT=80"
+    events, skipped = normalizer.normalize_content(log, "network_firewall")
+    assert len(events) == 1
+    ev = events[0]["_source"]
+    assert ev["source"] == "Network"
+    assert ev["source_ip"] == "203.0.113.5"
+    assert ev["destination_ip"] == "192.168.1.200"
+    assert ev["destination_port"] == 80
+    assert ev["severity"] == "medium"
+    assert "public" in ev["ip_tags"]
+    assert "external" in ev["ip_tags"]
