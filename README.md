@@ -1,192 +1,171 @@
-# BCSSL Lab 07: SIEM Log Correlation Engine
-**Localhost Log Ingestion, Normalization, Correlation & Triage Platform**  
+# BCSSL Lab 07: SIEM Log Correlation Engine & Investigation Platform
+**7-Stage Enterprise SIEM Architecture & Threat Detection Engineering**  
 *Location: `D:\PROJECTS\SIEM-CORRELATION-ENGINE`*
 
 ---
 
-## 1. Overview
+## 1. Overview & 7-Stage Architecture
 
-This project implements a mini SIEM (Security Information and Event Management) platform designed for **BCSSL Lab 07**. It ingests uploaded authentication and security logs from multiple heterogeneous sources, normalizes them into a unified schema, indexes them into Elasticsearch, executes correlation detection rules across temporal windows, and visualizes prioritized alerts on a Kibana dashboard.
+This platform implements an enterprise-grade SIEM (Security Information and Event Management) system following the 7-stage lab architecture:
 
-### Core Security & OpSec Rules
-* **No Host Collection:** Does not collect or scrape any logs from the host PC (no Sysmon agent, no Windows Event Log collector, no auditd, no Filebeat).
-* **Passive Ingestion:** Uploaded files are strictly treated as data; contents are never executed or evaluated.
-* **Idempotent Ingestion:** Deterministic SHA-256 document hashing (`_id`) prevents duplicate events and duplicate alerts upon re-uploading files.
-* **Strict Localhost Binding:** All services bind strictly to `127.0.0.1`.
-
----
-
-## 2. Deliverables Checklist
-
-| # | Deliverable | Location | Status |
-|---|---|---|---|
-| 1 | `docker-compose.yml` | [`docker-compose.yml`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/docker-compose.yml) | Ready (ES 8.13.0 + Kibana 8.13.0, localhost bound) |
-| 2 | Normalizer Source | [`normalizer.py`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/normalizer.py) | Ready (`linux_auth`, `windows_security`, `firewall`) |
-| 3 | 3 Correlation Rules | [`correlate.py`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/correlate.py) & [`tests/test_correlation.py`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/tests/test_correlation.py) | Ready (Rules 1, 2, 3 + benign tests) |
-| 4 | Alerts Index (`security-alerts`) | [`correlate.py`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/correlate.py) & [`app.py`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/app.py) | Ready (Scored alerts with MITRE techniques & severities) |
-| 5 | SOC Triage Board Dashboard | [`soc_triage_board.ndjson`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/soc_triage_board.ndjson) | Ready (Kibana 8.13 saved objects export) |
-| 6 | Technical Write-Up | [`writeup.md`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/writeup.md) | Ready (One-page logic & tuning decisions) |
-
----
-
-## 3. Expected Input Formats and Column Names
-
-The normalizer accepts `.log`, `.txt`, `.json`, `.jsonl`, and `.csv` files up to 20 MB. It parses timestamps **from the log records** (never `datetime.now()`) and standardizes them into UTC ISO8601.
-
-### A. Linux Authentication (`linux_auth`)
-Supports standard Linux `/var/log/auth.log` and syslog text formats:
-* **SSH Successful Login:**
-  ```text
-  Oct 13 10:15:30 debian sshd[12345]: Accepted password for alice from 192.168.1.105 port 45212 ssh2
-  ```
-* **SSH Failed Login:**
-  ```text
-  Oct 13 10:15:32 debian sshd[12346]: Failed password for invalid user admin from 10.0.0.99 port 51234 ssh2
-  ```
-* **Sudo Execution (Process Creation):**
-  ```text
-  Oct 13 10:16:00 debian sudo:   alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/bin/bash
-  ```
-
-### B. Windows Security (`windows_security`)
-Supports JSON, JSONL, and CSV exports of Windows Security Event Logs.
-
-#### Monitored Event IDs:
-* **Event ID 4624:** Logon Success (`logon_success`)
-* **Event ID 4625:** Logon Failure (`logon_failure`)
-* **Event ID 4688:** Process Creation (`process_create`)
-
-#### Tolerant Column / Key Mappings:
-The parser recognizes common enterprise column variations case-insensitively:
-
-| Target Field | Expected Column Names / JSON Keys |
-| :--- | :--- |
-| **Event ID** | `EventID`, `EventId`, `event_id`, `Id`, `EventCode`, `winlog.event_id` |
-| **Timestamp** | `TimeCreated`, `timestamp`, `@timestamp`, `Time`, `Date`, `UtcTime`, `DateTime`, `SystemTime` |
-| **Host** | `Computer`, `host`, `hostname`, `ComputerName`, `host.name` |
-| **User** | `TargetUserName`, `user`, `username`, `AccountName`, `TargetUser`, `SubjectUserName` |
-| **Source IP** | `IpAddress`, `src_ip`, `Ip`, `ClientAddress`, `SourceNetworkAddress`, `SourceIP` |
-| **Process Name** | `NewProcessName`, `process_name`, `ProcessName`, `Image`, `process`, `CommandLine` |
-
-**Example CSV Format (`windows_security`):**
-```csv
-EventID,TimeCreated,Computer,TargetUserName,IpAddress,NewProcessName
-4625,2026-10-13T10:00:00Z,WIN-SRV01,admin,198.51.100.10,
-4625,2026-10-13T10:00:30Z,WIN-SRV01,admin,198.51.100.10,
-4624,2026-10-13T10:05:00Z,WIN-SRV01,david,198.51.100.50,
-4688,2026-10-13T10:05:45Z,WIN-SRV01,david,,powershell.exe
+```
+[ Stage 1: Log Sources ]
+  • Windows Sysmon / Security (4624, 4625, 4688, 4672, Event ID 1/3/11)
+  • Linux auditd (type=SYSCALL, type=USER_CMD, type=PATH) & sshd auth.log
+  • Network Firewalls (iptables, UFW, Cisco ASA)
+  • Sample Log Generator (sample_log_generator.py - controlled, seeded)
+           │
+           ▼
+[ Stage 2: Collection & Ingestion ]
+  • collector.py (Beats/Agent emulator: passive file ingestion)
+  • ./incoming directory monitoring & /upload web portal
+  • Deterministic SHA-256 _id generation & tolerant line-number skip reporting
+           │
+           ▼
+[ Stage 3: Parsing & Normalization ]
+  • Source-specific parsers: parse_windows_sysmon, parse_linux_auditd, parse_network_firewall
+  • Canonical Schema: {timestamp, source, event_type, user, source_ip, destination_ip, process_name, severity, host, raw_log}
+  • Offline local IP tagging: private/internal vs public/external (zero external network lookups)
+           │
+           ▼
+[ Stage 4: Correlation Engine ]
+  • Scenario 1: Brute Force Authentication (T1110 / T1110.001 - 10-min window)
+  • Scenario 2: Suspicious Process Execution (T1059.001 / T1059 - post-logon & unusual parent)
+  • Scenario 3: Privilege-Related Activity (T1548 / T1078 - Event 4672 & sudo elevation)
+  • Scenario 4: Network-Based Suspicious Activity (T1046 - port scan >=5 ports & block bursts)
+  • Scenario 5: Additional Security Event (T1003.008 sensitive file access & T1021 lateral movement)
+           │
+           ▼
+[ Stage 5: Storage & Indexing (Elasticsearch 8.13) ]
+  • security-events (normalized telemetry with date, keyword, ip mappings)
+  • security-alerts (deduplicated scored alerts with MITRE techniques & evidence IDs)
+           │
+           ▼
+[ Stage 6: Visualization & Investigation (Kibana 8.13 Lens) ]
+  • SOC Triage Board (Security Overview: alerts over time, top IPs, suspicious execution hosts)
+  • Alerts Dashboard (breakdown by rule, severity, and impacted source)
+  • Timeline Analysis (events histogram, source distribution)
+  • Events Search (Discover search across raw normalized security-events)
+           │
+           ▼
+[ Stage 7: Student Investigation Workspace ]
+  • /investigation portal with 5 Scenario Briefs & 8-Step Interactive SOC Playbook
+  • Incident Findings Form stored in ./investigations and exportable as Markdown
 ```
 
-### C. Firewall Logs (`firewall`)
-Supports UFW / iptables syslog, Cisco ASA, pfSense, and generic key-value or JSON formats:
-```text
-Oct 13 10:15:30 fw01 kernel: [UFW BLOCK] IN=eth0 SRC=198.51.100.22 DST=10.0.0.1 PROTO=TCP SPT=54321 DPT=22
-```
+### Operational Security & Integrity Constraints
+* **No Host Collection:** Does not collect or scrape any live logs from the host PC (no Sysmon agent, no Windows Event Log reader, no auditd, no Filebeat).
+* **Passive Ingestion:** Files are treated strictly as data; contents are never executed or evaluated.
+* **Deterministic Deduplication:** Ingestion uses `sha256(source_type + raw_line)` as document `_id` to prevent duplicate events upon re-upload. Alerts use composite hashing for idempotent triage.
+* **Strict Localhost Binding:** All services bind strictly to `127.0.0.1`. No external web lookups or third-party GeoIP calls.
 
 ---
 
-## 4. Setup and Execution Steps
+## 2. Canonical Normalization Schema
 
-### Step 1: Start Elasticsearch & Kibana
+All incoming logs are parsed and normalized to this unified schema:
 
-#### Option A: Portable Standalone Stack (No Docker / WSL Required)
-Run the automated startup script:
+| Canonical Field | Type | Description | Compatibility Alias |
+| :--- | :--- | :--- | :--- |
+| `timestamp` | `date` | UTC ISO8601 timestamp parsed from log line | - |
+| `source` | `keyword` | Primary log source (`Windows`, `Linux`, `Network`) | - |
+| `source_type` | `keyword` | Originating parser category (`windows_sysmon`, `linux_auditd`, etc.) | - |
+| `event_type` | `keyword` | Normalized activity (`logon_success`, `logon_failure`, `process_create`, `network_connection`, `file_access`, `privilege_escalation`) | - |
+| `user` | `keyword` | Target or executing account name | - |
+| `source_ip` | `ip` | Originating IP address (valid IPv4/IPv6 or null) | `src_ip` |
+| `destination_ip` | `ip` | Destination IP address (valid IPv4/IPv6 or null) | `dest_ip` |
+| `destination_port`| `integer` | Destination port number | - |
+| `process_name` | `keyword` | Executed executable name (e.g. `cmd.exe`, `powershell.exe`) | - |
+| `severity` | `keyword` | Event baseline severity (`low`, `medium`, `high`, `critical`) | - |
+| `host` | `keyword` | Hostname / endpoint device identifier | - |
+| `raw_log` | `text` | Original raw log string | `raw` |
+| `ip_tags` | `keyword` | Offline tags: `["private", "internal"]` vs `["public", "external"]` | - |
+
+---
+
+## 3. Five Correlation Scenarios
+
+All detection rules, thresholds, and sliding windows are externalized in `config.py`:
+
+| # | Detection Scenario | Trigger Conditions | Severity | MITRE Technique |
+|---|---|---|---|---|
+| **1** | **Brute Force Authentication** | $\ge 5$ failed logons from same IP within 10 minutes | High | `T1110` (Brute Force) |
+| | *Successful Brute Force* | Followed by successful authentication within window | Critical | `T1110.001` (Password Guessing) |
+| **2** | **Suspicious Process Execution** | Post-Logon execution of `powershell.exe`/`cmd.exe` by non-admin within 2m, or shell spawned from unusual parent (`winword.exe`, etc.) | High / Med | `T1059.001` (PowerShell) / `T1059` |
+| **3** | **Privilege-Related Activity** | Windows Event 4672 (special privileges assigned), unauthorized `sudo`/`su` elevation, or auditd UID/EUID privilege changes | High | `T1548` (Abuse Elevation Control) / `T1078` |
+| **4** | **Network-Based Suspicious Activity** | Single source IP probing $\ge 5$ destination ports/hosts within 5 minutes, or bursts of $\ge 5$ blocked connections | High / Med | `T1046` (Network Service Discovery) |
+| **5** | **Additional Security Event** | Sensitive system file access (e.g. `/etc/shadow`, `SAM`) or user lateral movement ($\ge 2$ hosts within 10m) | High | `T1003.008` (Credential Dumping) / `T1021` (Remote Services) |
+
+---
+
+## 4. Setup and Quickstart
+
+### Prerequisites
+* Windows PC with Python 3.10+
+* Portable Elasticsearch 8.13.0 and Kibana 8.13.0 in `./stack` (or Docker Desktop)
+
+### Step 1: Start Datastore & Dashboards
 ```powershell
-cd D:\PROJECTS\SIEM-CORRELATION-ENGINE
+# Start Elasticsearch (127.0.0.1:9200) and Kibana (127.0.0.1:5601)
 .\start_stack.ps1
-# Or: .\start_stack.bat
-```
-This launches portable Elasticsearch 8.13.0 (with 1 GB heap) on `http://127.0.0.1:9200` and Kibana 8.13.0 on `http://127.0.0.1:5601`.
-To stop the stack:
-```powershell
-.\stop_stack.ps1
-# Or: .\stop_stack.bat
+
+# Start FastAPI Web Application (127.0.0.1:8000)
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-#### Option B: Docker Desktop (WSL2)
-If Docker Desktop is available:
+### Step 2: Import & Verify Kibana Dashboards
 ```powershell
-cd D:\PROJECTS\SIEM-CORRELATION-ENGINE
-docker compose up -d
-```
-Verify services respond:
-* Elasticsearch: `http://127.0.0.1:9200`
-* Kibana: `http://127.0.0.1:5601`
-
-*(Note: In offline or test mode where neither is active, all features and unit tests run with the built-in mock ES client by setting `USE_MOCK_ES=1`.)*
-
-### Step 2: Start the SIEM FastAPI Web App
-Launch the ingestion web interface on localhost:
-```powershell
-cd D:\PROJECTS\SIEM-CORRELATION-ENGINE
-python app.py
-```
-Open your browser to:
-**`http://127.0.0.1:8000`**
-
-### Step 3: Ingest Logs & Run Correlation
-1. Navigate to `http://127.0.0.1:8000`.
-2. Select your log file type from the dropdown (`linux_auth`, `windows_security`, or `firewall`).
-3. Pick your log file and click **"Upload & Correlate"**.
-4. The web interface will display:
-   * Total events parsed into `normalized-events`.
-   * Skipped/unrecognized lines with exact line numbers and reasons (without failing the upload).
-   * Prioritized alerts generated in `security-alerts`.
-   * A direct link to Kibana.
-5. Click **"Run Correlation Rules"** to re-evaluate detection rules on demand, or **"Clear Data"** to reset the indices.
-
-### Step 4: Import Kibana Dashboard ("SOC Triage Board")
-Once Kibana is running at `http://127.0.0.1:5601`, run the automated import script:
-```powershell
+# Automatically imports Lens dashboards and data views into Kibana
 python setup_kibana.py
 ```
-Or import manually in Kibana:
-1. Open **Kibana** (`http://127.0.0.1:5601`).
-2. Go to **Management** &rarr; **Stack Management** &rarr; **Saved Objects**.
-3. Click **Import** (top right) and select `D:\PROJECTS\SIEM-CORRELATION-ENGINE\soc_triage_board.ndjson`.
-4. Open **Dashboard** &rarr; **SOC Triage Board**.
+This imports:
+* **SOC Triage Board:** `http://127.0.0.1:5601/app/dashboards#/view/soc-triage-board-dashboard`
+* **Alerts Dashboard:** `http://127.0.0.1:5601/app/dashboards#/view/alerts-dashboard`
+* **Timeline Analysis:** `http://127.0.0.1:5601/app/dashboards#/view/timeline-analysis-dashboard`
+* **Discover Events Search:** `http://127.0.0.1:5601/app/discover#/view/events-search`
 
----
-
-## 5. Automated Verification Tests
-
-The test suite in [`tests/`](file:///D:/PROJECTS/SIEM-CORRELATION-ENGINE/tests/) contains fixtures verifying each rule fires on its attack scenario, does NOT fire on benign activity, handles skipped lines gracefully, and ensures re-uploading produces no duplicates:
-
+### Step 3: Run Full Verification Suite
 ```powershell
-cd D:\PROJECTS\SIEM-CORRELATION-ENGINE
-pytest tests -v
+# Run unit test suite (27 tests)
+pytest tests/
+
+# Run end-to-end integration test against live Elasticsearch 8.13
+python test_e2e.py
 ```
 
-**Test Coverage Summary (18 Automated Tests):**
-* `test_normalizer.py`: Tests SSH accepted/failed, sudo process creation, Windows JSON/CSV Event IDs 4624/4625/4688, firewall parsing, bad line isolation, deterministic IDs.
-* `test_correlation.py`:
-  * Rule 1 (Brute Force Suspected): $\ge 5$ failures within 5 mins &rarr; High alert.
-  * Rule 2 (Successful Brute Force): $\ge 5$ failures followed by logon success &rarr; Critical alert.
-  * Rule 3 (Post-Logon Suspicious Execution): Non-admin logon followed by `powershell.exe` within 2 mins &rarr; High alert.
-  * Benign Scenarios: Below threshold ($<5$), spaced attempts ($>5$ mins), admin execution, benign executables (`notepad.exe`), delayed execution ($>2$ mins) &rarr; 0 alerts.
-  * Deduplication: Identical re-upload causes 0 duplicate events and 0 duplicate alerts.
-* `test_app.py`: Tests `GET /`, `POST /upload` (with generated UUID filename), file extension restrictions, and `POST /clear`.
+### Step 4: Access Student Investigation Lab
+Open browser at `http://127.0.0.1:8000/investigation`:
+1. Select an incident scenario brief.
+2. Follow the interactive 8-step checklist.
+3. Investigate events and alerts in Kibana using direct navigation links.
+4. Record findings and export as a Markdown incident report.
 
 ---
 
-## 6. Troubleshooting
+## 5. File Structure Reference
 
-* **Elasticsearch fails to start (`vm.max_map_count too low`):**
-  If Docker reports that virtual memory mapping is insufficient, increase `vm.max_map_count` inside WSL:
-  ```powershell
-  wsl -d docker-desktop sysctl -w vm.max_map_count=262144
-  ```
-  *(To persist across reboots, add `vm.max_map_count = 262144` to `C:\Users\<user>\.wslconfig` or `/etc/sysctl.conf` inside WSL).*
-* **Elasticsearch Connection Refused (`127.0.0.1:9200`):**
-  Check that the container is running:
-  ```powershell
-  docker ps
-  ```
-  Check Elasticsearch container logs:
-  ```powershell
-  docker logs es
-  ```
-* **Kibana Shows "No data found":**
-  Ensure you have uploaded at least one log file so that documents exist in `security-alerts` before querying the dashboard.
-* **Testing without Docker:**
-  Set `$env:USE_MOCK_ES="1"` in PowerShell to run the application in mock storage mode while preparing your environment.
+```
+D:\PROJECTS\SIEM-CORRELATION-ENGINE\
+├── config.py                 # Central configuration: paths, thresholds, windows, subnets
+├── normalizer.py             # Multi-source parsers, schema normalization, offline IP tagging
+├── collector.py              # Agent-like file ingestion from /upload and ./incoming
+├── correlate.py              # 5-scenario correlation engine with MITRE ATT&CK scoring
+├── storage.py                # Elasticsearch client, explicit mappings (date/keyword/ip), mock fallback
+├── sample_log_generator.py   # Seeded, reproducible synthetic training dataset generator
+├── build_kibana_objects.py   # Generator for pure Lens saved objects (Kibana 8.13)
+├── setup_kibana.py           # Automated import & verification script for Kibana objects
+├── soc_triage_board.ndjson   # Saved objects package (Dashboards, Lens visuals, Data views)
+├── app.py                    # FastAPI web server (port 8000): dashboard, ingestion, investigation lab
+├── templates/
+│   ├── index.html            # Main dashboard, upload UI, example raw logs, triage summary
+│   └── investigation.html    # Student investigation lab, 8-step workflow, findings form
+├── incoming/                 # Watched directory for passive log ingestion (ignored by git)
+├── sample_logs/              # Output folder for generated synthetic sample logs (ignored by git)
+├── investigations/           # Output folder for saved student findings (ignored by git)
+├── tests/
+│   ├── fixtures/             # Isolated test telemetry fixtures
+│   ├── test_normalizer.py    # Unit tests for multi-source parsers and schema
+│   ├── test_correlation.py   # Unit tests for all 5 correlation rules and edge cases
+│   └── test_app.py           # API and web route integration tests
+└── test_e2e.py               # Live end-to-end verification against real Elasticsearch
+```

@@ -1,16 +1,20 @@
 import os
 import uuid
+import json
 import logging
 from pathlib import Path
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
 from fastapi import FastAPI, Request, File, Form, UploadFile, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 
 import config
 import normalizer
 import correlate
+import collector
+import sample_log_generator
 from storage import get_es_client, initialize_indices, bulk_index_events, MockElasticsearch
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -277,6 +281,156 @@ async def api_alerts():
     es = get_es_client()
     state = get_pipeline_state(es)
     return JSONResponse(content={"alerts": state["alerts"]})
+
+
+@app.get("/investigation", response_class=HTMLResponse)
+async def get_investigation(
+    request: Request,
+    scenario: str = "scenario_1",
+    flash: Optional[str] = None,
+    flash_type: Optional[str] = None
+):
+    findings_file = config.INVESTIGATIONS_DIR / f"{scenario}_findings.json"
+    saved = {}
+    if findings_file.exists():
+        try:
+            saved = json.loads(findings_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    return templates.TemplateResponse(
+        request=request,
+        name="investigation.html",
+        context={
+            "kibana_url": config.KIBANA_HOST,
+            "current_scenario": scenario,
+            "saved_findings": saved,
+            "flash_message": flash,
+            "flash_type": flash_type
+        }
+    )
+
+
+@app.post("/investigation/save", response_class=HTMLResponse)
+async def save_investigation(
+    request: Request,
+    scenario_key: str = Form(...),
+    analyst_name: str = Form(...),
+    verdict: str = Form(...),
+    impacted_hosts: str = Form(""),
+    threat_ip: str = Form(""),
+    mitre_technique: str = Form(""),
+    timeline_summary: str = Form(""),
+    evidence_ids: str = Form(""),
+    recommendations: str = Form("")
+):
+    findings_data = {
+        "scenario_key": scenario_key,
+        "analyst_name": analyst_name,
+        "verdict": verdict,
+        "impacted_hosts": impacted_hosts,
+        "threat_ip": threat_ip,
+        "mitre_technique": mitre_technique,
+        "timeline_summary": timeline_summary,
+        "evidence_ids": evidence_ids,
+        "recommendations": recommendations,
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    }
+
+    findings_file = config.INVESTIGATIONS_DIR / f"{scenario_key}_findings.json"
+    findings_file.write_text(json.dumps(findings_data, indent=2), encoding="utf-8")
+
+    return templates.TemplateResponse(
+        request=request,
+        name="investigation.html",
+        context={
+            "kibana_url": config.KIBANA_HOST,
+            "current_scenario": scenario_key,
+            "saved_findings": findings_data,
+            "flash_message": f"Findings for {scenario_key.replace('_', ' ').title()} successfully recorded to {findings_file.name}.",
+            "flash_type": "success"
+        }
+    )
+
+
+@app.get("/investigation/export/{scenario_key}")
+async def export_investigation(scenario_key: str):
+    findings_file = config.INVESTIGATIONS_DIR / f"{scenario_key}_findings.json"
+    if not findings_file.exists():
+        data = {
+            "scenario_key": scenario_key,
+            "analyst_name": "SOC Analyst",
+            "verdict": "Under Investigation",
+            "impacted_hosts": "N/A",
+            "threat_ip": "N/A",
+            "mitre_technique": "N/A",
+            "timeline_summary": "Pending investigation notes.",
+            "evidence_ids": "None documented yet.",
+            "recommendations": "Conduct telemetry analysis.",
+            "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        }
+    else:
+        data = json.loads(findings_file.read_text(encoding="utf-8"))
+
+    md = f"""# SOC Incident Investigation Report: {scenario_key.upper()}
+**Investigator / Analyst:** {data.get('analyst_name', 'Analyst')}
+**Date / Timestamp:** {data.get('updated_at', 'N/A')}
+**Incident Verdict:** {data.get('verdict', 'N/A')}
+**MITRE ATT&CK Technique:** {data.get('mitre_technique', 'N/A')}
+
+---
+
+## 1. Executive Summary & Scope
+- **Impacted Host(s):** `{data.get('impacted_hosts', 'N/A')}`
+- **Identified Threat IP(s):** `{data.get('threat_ip', 'N/A')}`
+
+## 2. Chronological Timeline Analysis
+{data.get('timeline_summary', 'No timeline documented.')}
+
+## 3. Correlated Telemetry & Evidence Event IDs
+The following deterministic SHA-256 event IDs were isolated from the `security-events` index:
+```
+{data.get('evidence_ids', 'None')}
+```
+
+## 4. Remediation & Hardening Recommendations
+{data.get('recommendations', 'No recommendations provided.')}
+
+---
+*Generated by SIEM Log Correlation Engine (BCSSL Lab 07)*
+"""
+    return Response(
+        content=md,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename={scenario_key}_report.md"}
+    )
+
+
+@app.post("/generate-samples", response_class=HTMLResponse)
+async def generate_training_dataset(request: Request):
+    es = get_es_client()
+    initialize_indices(es)
+    sample_files = sample_log_generator.generate_sample_logs()
+
+    total_parsed = 0
+    for stype, fpath in [("windows_sysmon", sample_files["windows"]),
+                         ("linux_auditd", sample_files["linux"]),
+                         ("network_firewall", sample_files["network"])]:
+        res = collector.collect_file(Path(fpath), source_type=stype, es=es)
+        total_parsed += res["events_parsed"]
+
+    alerts = correlate.run_correlation(es)
+    state = get_pipeline_state(es)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "flash_message": f"Training dataset generated and ingested: {total_parsed} events indexed across Windows, Linux, and Network logs. {len(alerts)} alerts active.",
+            "flash_type": "success",
+            **state
+        }
+    )
 
 
 if __name__ == "__main__":

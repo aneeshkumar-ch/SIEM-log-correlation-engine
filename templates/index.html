@@ -300,11 +300,17 @@
         <header>
             <div>
                 <h1>SIEM Log Correlation Engine</h1>
-                <div class="subtitle">BCSSL Lab 07 &bull; Localhost Telemetry Ingest &bull; Rule-Based Detection</div>
+                <div class="subtitle">BCSSL Lab 07 &bull; 7-Stage Pipeline &bull; Detection &amp; Investigation</div>
             </div>
             <div class="top-links">
-                <a href="{{ kibana_url }}" target="_blank" class="btn btn-kibana">
-                    Open Kibana Dashboard &nearr;
+                <a href="/investigation" class="btn btn-primary" style="background-color: #0284c7;">
+                    🔬 Investigation Lab
+                </a>
+                <a href="{{ kibana_url }}/app/dashboards#/view/soc-triage-board-dashboard" target="_blank" class="btn btn-kibana">
+                    SOC Triage Board &nearr;
+                </a>
+                <a href="{{ kibana_url }}/app/discover#/view/events-search" target="_blank" class="btn btn-secondary">
+                    Discover Events &nearr;
                 </a>
             </div>
         </header>
@@ -320,15 +326,18 @@
             <div class="card">
                 <div class="card-title">
                     <span>Ingest Log File</span>
-                    <span class="badge badge-info">Max 20MB</span>
+                    <span class="badge badge-info">Passive Ingestion</span>
                 </div>
                 <form action="/upload" method="post" enctype="multipart/form-data">
                     <div class="form-group">
                         <label for="source_type">Log Source Type</label>
                         <select name="source_type" id="source_type" required>
-                            <option value="linux_auth">Linux Auth (sshd, sudo, pam)</option>
-                            <option value="windows_security">Windows Security (Event IDs 4624, 4625, 4688 - JSON / CSV)</option>
-                            <option value="firewall">Firewall (UFW / iptables / Key-Value)</option>
+                            <option value="windows_sysmon">Windows (Sysmon &amp; Security IDs 4624/4625/4688/4672)</option>
+                            <option value="linux_auditd">Linux (auditd type=SYSCALL &amp; sshd/auth.log)</option>
+                            <option value="network_firewall">Network Firewall (UFW / iptables / Cisco)</option>
+                            <option value="windows_security">Windows Security (Legacy alias)</option>
+                            <option value="linux_auth">Linux Auth (Legacy alias)</option>
+                            <option value="firewall">Firewall (Legacy alias)</option>
                         </select>
                     </div>
 
@@ -372,11 +381,47 @@
                         </button>
                     </form>
 
-                    <form action="/clear" method="post" onsubmit="return confirm('Clear all data from normalized-events and security-alerts indices?');">
+                    <form action="/generate-samples" method="post">
+                        <button type="submit" class="btn btn-secondary" style="width: 100%; background-color: #0d9488;">
+                            Generate &amp; Ingest Training Dataset
+                        </button>
+                    </form>
+
+                    <form action="/clear" method="post" onsubmit="return confirm('Clear all data from security-events and security-alerts indices?');">
                         <button type="submit" class="btn btn-danger" style="width: 100%;">
                             Clear Data (Indices Reset)
                         </button>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Example Raw Logs Collapsible Card -->
+        <div class="card" style="margin-bottom: 24px;">
+            <div class="card-title">
+                <span>Example Raw Logs (Expected Formats)</span>
+                <span class="badge badge-info">Stage 1 Reference</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
+                <!-- Windows Sysmon -->
+                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px;">
+                    <div style="font-weight: 600; color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">Windows (Sysmon / Security JSONL)</div>
+                    <pre style="font-size: 0.75rem; color: #94a3b8; overflow-x: auto; white-space: pre-wrap;">{"EventID": 4624, "TimeCreated": "2026-10-13T10:15:30Z", "Computer": "WIN-SRV01", "TargetUserName": "alice", "IpAddress": "192.168.1.50"}
+{"EventID": 4688, "TimeCreated": "2026-10-13T10:16:00Z", "Computer": "WIN-SRV01", "TargetUserName": "alice", "NewProcessName": "powershell.exe"}</pre>
+                </div>
+
+                <!-- Linux Auditd -->
+                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px;">
+                    <div style="font-weight: 600; color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">Linux (auditd / auth.log)</div>
+                    <pre style="font-size: 0.75rem; color: #94a3b8; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 srv01 sshd[123]: Failed password for invalid user root from 203.0.113.88 port 4210 ssh2
+type=SYSCALL msg=audit(1697191230.123:456): arch=c000003e syscall=59 success=yes exit=0 exe="/usr/bin/cat" name="/etc/shadow" host=srv01</pre>
+                </div>
+
+                <!-- Network Firewall -->
+                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px;">
+                    <div style="font-weight: 600; color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">Network Firewall (UFW / iptables)</div>
+                    <pre style="font-size: 0.75rem; color: #94a3b8; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5510 DPT=22
+Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5511 DPT=80</pre>
                 </div>
             </div>
         </div>

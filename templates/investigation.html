@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCSSL Lab 07 - Student Investigation Workspace</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --kibana: #6366f1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            color: #60a5fa;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid transparent;
+            text-decoration: none;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .btn-primary { background-color: var(--primary); color: #fff; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+        .btn-secondary { background-color: #334155; color: #fff; }
+        .btn-secondary:hover { background-color: #475569; }
+        .btn-kibana { background-color: var(--kibana); color: #fff; }
+        .btn-kibana:hover { background-color: #4f46e5; }
+        .btn-success { background-color: var(--success); color: #fff; }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-mitre { background-color: #312e81; color: #c7d2fe; border: 1px solid #4338ca; }
+        .badge-high { background-color: #7f1d1d; color: #fca5a5; }
+        .badge-crit { background-color: #881337; color: #fda4af; }
+        .badge-med { background-color: #78350f; color: #fcd34d; }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .scenario-box {
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        .scenario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .scenario-name {
+            font-weight: 600;
+            color: #38bdf8;
+            font-size: 0.95rem;
+        }
+
+        .scenario-desc {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+        }
+
+        .scenario-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* 8-Step Workflow Checklist */
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 12px;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+        }
+
+        .checklist-item input[type="checkbox"] {
+            margin-top: 3px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .checklist-item.completed {
+            background-color: #064e3b22;
+            border-color: #065f46;
+        }
+
+        .checklist-step-num {
+            font-weight: 700;
+            color: #38bdf8;
+            min-width: 55px;
+        }
+
+        .checklist-content {
+            flex: 1;
+        }
+
+        .checklist-title {
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .checklist-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Findings Form */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            background-color: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-size: 0.875rem;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 75px;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .alert-box {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .alert-success { background-color: #064e3b; border: 1px solid #059669; color: #6ee7b7; }
+        .alert-info { background-color: #1e3a8a; border: 1px solid #2563eb; color: #bfdbfe; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Student Investigation Workspace</h1>
+                <div class="subtitle">Stage 7 Hands-on Lab &bull; 8-Step SOC Incident Response Workflow</div>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="btn btn-secondary">&larr; Main Engine</a>
+                <a href="{{ kibana_url }}/app/dashboards#/view/soc-triage-board-dashboard" target="_blank" class="btn btn-kibana">
+                    SOC Triage Board &nearr;
+                </a>
+                <a href="{{ kibana_url }}/app/discover#/view/events-search" target="_blank" class="btn btn-kibana">
+                    Discover Events &nearr;
+                </a>
+            </div>
+        </header>
+
+        {% if flash_message %}
+            <div class="alert-box alert-{{ flash_type or 'info' }}">
+                {{ flash_message }}
+            </div>
+        {% endif %}
+
+        <!-- Quick Access Dashboard Pills -->
+        <div class="card" style="padding: 14px 20px;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Direct Kibana Navigation:</span>
+                <a href="{{ kibana_url }}/app/dashboards#/view/soc-triage-board-dashboard" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;">
+                    📊 SOC Triage Board
+                </a>
+                <a href="{{ kibana_url }}/app/dashboards#/view/alerts-dashboard" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;">
+                    🚨 Alerts Dashboard
+                </a>
+                <a href="{{ kibana_url }}/app/dashboards#/view/timeline-analysis-dashboard" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;">
+                    ⏱ Timeline Analysis
+                </a>
+                <a href="{{ kibana_url }}/app/discover#/view/events-search" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 4px 10px;">
+                    🔍 Raw Events Discover
+                </a>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- Left Column: Scenario Briefs -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <span>Incident Investigation Scenarios</span>
+                        <span class="badge badge-mitre">5 Briefs</span>
+                    </div>
+
+                    <!-- Scenario 1 -->
+                    <div class="scenario-box">
+                        <div class="scenario-header">
+                            <span class="scenario-name">1. Brute Force Authentication</span>
+                            <span class="badge badge-crit">Critical / High</span>
+                        </div>
+                        <div class="scenario-desc">
+                            An external threat actor attempts rapid password guessing against SSH or Windows authentication, followed by potential successful access.
+                        </div>
+                        <div class="scenario-meta">
+                            <span><span class="badge badge-mitre">T1110</span> / <span class="badge badge-mitre">T1110.001</span></span>
+                            <span>Threshold: &ge;5 failures in 10m</span>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 2 -->
+                    <div class="scenario-box">
+                        <div class="scenario-header">
+                            <span class="scenario-name">2. Suspicious Process Execution</span>
+                            <span class="badge badge-high">High</span>
+                        </div>
+                        <div class="scenario-desc">
+                            A non-admin user logs on and immediately launches an administrative interpreter (PowerShell / cmd.exe) or living-off-the-land utility within 2 minutes.
+                        </div>
+                        <div class="scenario-meta">
+                            <span><span class="badge badge-mitre">T1059.001</span></span>
+                            <span>Window: 2m Post-Logon</span>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 3 -->
+                    <div class="scenario-box">
+                        <div class="scenario-header">
+                            <span class="scenario-name">3. Privilege-Related Activity</span>
+                            <span class="badge badge-high">High</span>
+                        </div>
+                        <div class="scenario-desc">
+                            Elevation of rights detected: Windows Event 4672 special privileges assigned or unauthorized Linux sudo/su execution by non-admin accounts.
+                        </div>
+                        <div class="scenario-meta">
+                            <span><span class="badge badge-mitre">T1548</span> / <span class="badge badge-mitre">T1078</span></span>
+                            <span>Indicators: Event 4672, sudo / su</span>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 4 -->
+                    <div class="scenario-box">
+                        <div class="scenario-header">
+                            <span class="scenario-name">4. Network-Based Suspicious Activity</span>
+                            <span class="badge badge-high">High / Med</span>
+                        </div>
+                        <div class="scenario-desc">
+                            Reconnaissance or probing detected via perimeter firewall: a single source IP probing &ge;5 destination ports/hosts or generating high-volume blocked packet bursts.
+                        </div>
+                        <div class="scenario-meta">
+                            <span><span class="badge badge-mitre">T1046</span></span>
+                            <span>Threshold: &ge;5 ports in 5m</span>
+                        </div>
+                    </div>
+
+                    <!-- Scenario 5 -->
+                    <div class="scenario-box">
+                        <div class="scenario-header">
+                            <span class="scenario-name">5. Sensitive File Access &amp; Lateral Movement</span>
+                            <span class="badge badge-high">High</span>
+                        </div>
+                        <div class="scenario-desc">
+                            Credential dumping attempt on Linux system credentials (/etc/shadow) or same user pivoting across multiple endpoints in short succession.
+                        </div>
+                        <div class="scenario-meta">
+                            <span><span class="badge badge-mitre">T1003.008</span> / <span class="badge badge-mitre">T1021</span></span>
+                            <span>Targets: /etc/shadow, multi-host logons</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8-Step Interactive Checklist -->
+                <div class="card">
+                    <div class="card-title">
+                        <span>8-Step Investigation Workflow</span>
+                        <span class="badge badge-mitre">SOC Playbook</span>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk1" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 1</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Read the scenario brief</div>
+                            <div class="checklist-desc">Review attack vector, expected indicators, and baseline hypothesis.</div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk2" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 2</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Search in Kibana</div>
+                            <div class="checklist-desc">Query security-events* in Discover using KQL filters.</div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk3" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 3</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Filter relevant events</div>
+                            <div class="checklist-desc">Isolate events by suspicious source IP, impacted host, or specific username.</div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk4" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 4</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Analyze timeline</div>
+                            <div class="checklist-desc">Examine event sequence chronologically to track adversary progression.</div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk5" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 5</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Identify pattern</div>
+                            <div class="checklist-desc">Pinpoint anomalous frequency, abnormal execution, or privilege shift.</div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk6" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 6</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Check correlated alert</div>
+                            <div class="checklist-desc">Correlate with alerts in security-alerts* on the SOC Triage Board.</div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk7" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 7</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Document evidence</div>
+                            <div class="checklist-desc">Extract deterministic event IDs and log evidence into the findings record.</div>
+                        </div>
+                    </div>
+
+                    <div class="checklist-item">
+                        <input type="checkbox" id="chk8" onchange="toggleCheck(this)">
+                        <div class="checklist-step-num">Step 8</div>
+                        <div class="checklist-content">
+                            <div class="checklist-title">Reach a conclusion</div>
+                            <div class="checklist-desc">Classify true/false positive and outline remediation recommendations.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Investigation Findings Form -->
+            <div>
+                <div class="card">
+                    <div class="card-title">
+                        <span>Incident Findings Documentation</span>
+                        <span class="badge badge-mitre">Save &amp; Export</span>
+                    </div>
+
+                    <form action="/investigation/save" method="post">
+                        <div class="form-group">
+                            <label for="scenario_key">Investigation Scenario</label>
+                            <select name="scenario_key" id="scenario_key" required onchange="loadScenarioData(this.value)">
+                                <option value="scenario_1">Scenario 1: Brute Force Authentication</option>
+                                <option value="scenario_2">Scenario 2: Suspicious Process Execution</option>
+                                <option value="scenario_3">Scenario 3: Privilege-Related Activity</option>
+                                <option value="scenario_4">Scenario 4: Network-Based Suspicious Activity</option>
+                                <option value="scenario_5">Scenario 5: Sensitive File Access &amp; Lateral Movement</option>
+                            </select>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label for="analyst_name">Investigator / Student</label>
+                                <input type="text" name="analyst_name" id="analyst_name" placeholder="e.g. SOC Analyst" value="{{ saved_findings.get('analyst_name', '') }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="verdict">Incident Verdict</label>
+                                <select name="verdict" id="verdict" required>
+                                    <option value="True Positive">True Positive (Incident Confirmed)</option>
+                                    <option value="False Positive">False Positive (Benign Activity)</option>
+                                    <option value="Inconclusive">Inconclusive (Needs Further Telemetry)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid-2">
+                            <div class="form-group">
+                                <label for="impacted_hosts">Impacted Host(s)</label>
+                                <input type="text" name="impacted_hosts" id="impacted_hosts" placeholder="e.g. WIN-SRV01, debian-srv" value="{{ saved_findings.get('impacted_hosts', '') }}">
+                            </div>
+                            <div class="form-group">
+                                <label for="threat_ip">Attacker / Threat IP(s)</label>
+                                <input type="text" name="threat_ip" id="threat_ip" placeholder="e.g. 198.51.100.25, 203.0.113.88" value="{{ saved_findings.get('threat_ip', '') }}">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="mitre_technique">MITRE ATT&amp;CK Technique</label>
+                            <input type="text" name="mitre_technique" id="mitre_technique" placeholder="e.g. T1110.001 (Password Guessing)" value="{{ saved_findings.get('mitre_technique', '') }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="timeline_summary">Timeline Analysis &amp; Sequence</label>
+                            <textarea name="timeline_summary" id="timeline_summary" placeholder="Describe chronological sequence of events (Step 4 &amp; 5)...">{{ saved_findings.get('timeline_summary', '') }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="evidence_ids">Evidence Event IDs (comma-separated)</label>
+                            <textarea name="evidence_ids" id="evidence_ids" placeholder="e.g. sha256 IDs from security-events or security-alerts...">{{ saved_findings.get('evidence_ids', '') }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="recommendations">Remediation &amp; Mitigation Action</label>
+                            <textarea name="recommendations" id="recommendations" placeholder="e.g. Block source IP at perimeter, rotate compromised credentials...">{{ saved_findings.get('recommendations', '') }}</textarea>
+                        </div>
+
+                        <div style="display: flex; gap: 12px; margin-top: 20px;">
+                            <button type="submit" class="btn btn-primary" style="flex: 1;">
+                                Save Findings Locally
+                            </button>
+                            <a id="exportBtn" href="/investigation/export/scenario_1" class="btn btn-secondary">
+                                Export as Markdown &darr;
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleCheck(el) {
+            const parent = el.closest('.checklist-item');
+            if (el.checked) {
+                parent.classList.add('completed');
+            } else {
+                parent.classList.remove('completed');
+            }
+        }
+
+        function loadScenarioData(key) {
+            document.getElementById('exportBtn').href = '/investigation/export/' + key;
+            window.location.href = '/investigation?scenario=' + key;
+        }
+
+        // Set initial export link
+        const currentScenario = "{{ current_scenario or 'scenario_1' }}";
+        document.getElementById('scenario_key').value = currentScenario;
+        document.getElementById('exportBtn').href = '/investigation/export/' + currentScenario;
+    </script>
+</body>
+</html>

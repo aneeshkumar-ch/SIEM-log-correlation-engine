@@ -111,3 +111,47 @@ def test_clear_pipeline_data():
     st_after = client.get("/api/status").json()
     assert st_after["events_count"] == 0
     assert st_after["alerts_count"] == 0
+
+
+def test_investigation_page_and_save():
+    client = TestClient(app)
+    # 1. GET /investigation
+    res = client.get("/investigation?scenario=scenario_1")
+    assert res.status_code == 200
+    assert "Student Investigation Workspace" in res.text
+    assert "Brute Force Authentication" in res.text
+    assert "8-Step Investigation Workflow" in res.text
+
+    # 2. POST /investigation/save
+    post_data = {
+        "scenario_key": "scenario_1",
+        "analyst_name": "Test Analyst",
+        "verdict": "True Positive",
+        "impacted_hosts": "WIN-SRV01",
+        "threat_ip": "198.51.100.25",
+        "mitre_technique": "T1110.001",
+        "timeline_summary": "Attacker attempted 5 failed logons followed by success.",
+        "evidence_ids": "ev-001, ev-002",
+        "recommendations": "Block IP 198.51.100.25 and reset credentials."
+    }
+    save_res = client.post("/investigation/save", data=post_data)
+    assert save_res.status_code == 200
+    assert "Findings for Scenario 1 successfully recorded" in save_res.text
+
+    # 3. GET /investigation/export/scenario_1
+    export_res = client.get("/investigation/export/scenario_1")
+    assert export_res.status_code == 200
+    assert "text/markdown" in export_res.headers.get("content-type", "")
+    assert "# SOC Incident Investigation Report" in export_res.text
+    assert "198.51.100.25" in export_res.text
+
+
+def test_generate_samples_route():
+    client = TestClient(app)
+    res = client.post("/generate-samples")
+    assert res.status_code == 200
+    assert "Training dataset generated and ingested" in res.text
+
+    status = client.get("/api/status").json()
+    assert status["events_count"] > 0
+    assert status["alerts_count"] > 0
