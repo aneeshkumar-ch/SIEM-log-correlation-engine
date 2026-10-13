@@ -89,12 +89,12 @@ All detection rules, thresholds, and sliding windows are externalized in `config
 
 | # | Detection Scenario | Trigger Conditions | Severity | MITRE Technique |
 |---|---|---|---|---|
-| **1** | **Brute Force Authentication** | $\ge 5$ failed logons from same IP within 10 minutes (`config.BRUTE_FORCE_WINDOW_MINUTES = 10`) | High | `T1110` (Brute Force) |
+| **1** | **Brute Force Authentication** | >= 5 failed logons from same IP within 10 minutes (`config.BRUTE_FORCE_WINDOW_MINUTES = 10`) | High | `T1110` (Brute Force) |
 | | *Successful Brute Force* | Followed by successful authentication from same IP within window | Critical | `T1110.001` (Password Guessing) |
 | **2** | **Suspicious Process Execution** | Post-Logon execution of `powershell.exe`/`cmd.exe` by non-admin within 2m, or shell spawned from unusual parent (`winword.exe`, etc.) | High / Med | `T1059.001` (PowerShell) / `T1059` |
 | **3** | **Privilege-Related Activity** | Windows Event 4672 (special privileges assigned), unauthorized `sudo`/`su` elevation, or auditd UID/EUID privilege changes | High | `T1548` (Abuse Elevation Control) / `T1078` |
-| **4** | **Network-Based Suspicious Activity** | Single source IP probing $\ge 5$ distinct ports on a destination host within 5 minutes, or bursts of $\ge 5$ blocked connections | High / Med | `T1046` (Network Service Discovery) |
-| **5** | **Additional Security Event** | Sensitive system file access (e.g. `/etc/shadow`, `SAM`, `ntds.dit`) or user lateral movement ($\ge 2$ hosts within 10m) | High | `T1003.008` (Credential Dumping) / `T1021` (Remote Services) |
+| **4** | **Network-Based Suspicious Activity** | Single source IP probing >= 5 distinct ports on a destination host within 5 minutes, or bursts of >= 5 blocked connections | High / Med | `T1046` (Network Service Discovery) |
+| **5** | **Additional Security Event** | Sensitive system file access (e.g. `/etc/shadow`, `SAM`, `ntds.dit`) or user lateral movement (>= 2 hosts within 10m) | High | `T1003.008` (Credential Dumping) / `T1021` (Remote Services) |
 
 
 ---
