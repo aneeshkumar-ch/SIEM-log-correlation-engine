@@ -71,10 +71,16 @@ def verify_saved_objects_and_data() -> bool:
     objects_to_check = [
         ("index-pattern", "security-alerts-dataview", "Data View: security-alerts*"),
         ("index-pattern", "security-events-dataview", "Data View: security-events*"),
+        ("lens", "metric-total-alerts", "Lens Metric: Total Alerts"),
+        ("lens", "metric-critical-alerts", "Lens Metric: Critical Alerts"),
+        ("lens", "metric-high-alerts", "Lens Metric: High Alerts"),
+        ("lens", "metric-unique-source-ips", "Lens Metric: Unique Source IPs"),
+        ("lens", "metric-affected-hosts", "Lens Metric: Affected Hosts"),
         ("lens", "alerts-by-severity", "Lens: Alerts by Severity Over Time"),
         ("lens", "top-source-ips", "Lens Data Table: Top Source IPs"),
         ("lens", "suspicious-execution-hosts", "Lens Data Table: Hosts with Post-Logon Suspicious Execution"),
-        ("lens", "alerts-by-rule", "Lens: Alerts by Detection Rule"),
+        ("lens", "alerts-by-rule", "Lens: Alerts by Detection Rule (Horizontal Bar)"),
+        ("lens", "alerts-by-mitre", "Lens: Alerts by MITRE Technique"),
         ("lens", "alerts-by-user", "Lens: Alerts by User"),
         ("lens", "alerts-by-host", "Lens: Alerts by Host"),
         ("lens", "recent-alerts-table", "Lens Data Table: Recent Security Alerts"),
@@ -168,6 +174,30 @@ def verify_saved_objects_and_data() -> bool:
         }
         es.index(index=temp_alerts_idx, document=low_alert, refresh=True)
 
+        # Row 1 Metric Panels Verification:
+        res_metrics = es.search(
+            index=temp_alerts_idx,
+            query={"match_all": {}},
+            size=0,
+            aggs={
+                "unique_ips": {"cardinality": {"field": "src_ip"}},
+                "unique_hosts": {"cardinality": {"field": "host"}},
+                "critical_count": {"filter": {"term": {"severity": "critical"}}},
+                "high_count": {"filter": {"term": {"severity": "high"}}}
+            }
+        )
+        total_m = res_metrics.get("hits", {}).get("total", {}).get("value", 0)
+        crit_m = res_metrics.get("aggregations", {}).get("critical_count", {}).get("doc_count", 0)
+        high_m = res_metrics.get("aggregations", {}).get("high_count", {}).get("doc_count", 0)
+        u_ips = res_metrics.get("aggregations", {}).get("unique_ips", {}).get("value", 0)
+        u_hosts = res_metrics.get("aggregations", {}).get("unique_hosts", {}).get("value", 0)
+        print(f"\n  [Top Metric Counters]")
+        print(f"           - Total Alerts       : {total_m}")
+        print(f"           - Critical Alerts    : {crit_m}")
+        print(f"           - High Alerts        : {high_m}")
+        print(f"           - Unique Source IPs  : {u_ips}")
+        print(f"           - Affected Hosts     : {u_hosts}")
+
         # Panel 1: Alerts by Severity Over Time
         res_sev = es.search(
             index=temp_alerts_idx,
@@ -213,8 +243,20 @@ def verify_saved_objects_and_data() -> bool:
             aggs={"rules": {"terms": {"field": "rule_name", "size": 10}}}
         )
         rule_buckets = res_rules.get("aggregations", {}).get("rules", {}).get("buckets", [])
-        print(f"\n  [Panel 4: Alerts by Detection Rule] {len(rule_buckets)} active rule(s):")
+        print(f"\n  [Panel 4: Alerts by Detection Rule (Horizontal Bar)] {len(rule_buckets)} active rule(s):")
         for b in rule_buckets:
+            print(f"           - {b['key']:<34}: {b['doc_count']} alert(s)")
+
+        # Panel 4B: Alerts by MITRE Technique
+        res_mitre = es.search(
+            index=temp_alerts_idx,
+            query={"match_all": {}},
+            size=0,
+            aggs={"mitre": {"terms": {"field": "mitre_technique", "size": 10}}}
+        )
+        mitre_buckets = res_mitre.get("aggregations", {}).get("mitre", {}).get("buckets", [])
+        print(f"\n  [Panel 4B: Alerts by MITRE Technique] {len(mitre_buckets)} technique(s):")
+        for b in mitre_buckets:
             print(f"           - {b['key']:<34}: {b['doc_count']} alert(s)")
 
         # Panel 5: Alerts by User

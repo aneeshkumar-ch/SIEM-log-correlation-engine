@@ -34,3 +34,6 @@ stack/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Screenshots
+screenshots/
