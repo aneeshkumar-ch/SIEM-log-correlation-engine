@@ -6,23 +6,23 @@
     <title>BCSSL Lab 07 - SIEM Log Correlation Engine</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --border-color: #334155;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --danger: #ef4444;
-            --danger-hover: #dc2626;
-            --warning: #f59e0b;
-            --success: #10b981;
-            --critical: #881337;
-            --critical-text: #fda4af;
-            --high: #7f1d1d;
-            --high-text: #fca5a5;
-            --medium: #78350f;
-            --medium-text: #fcd34d;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --text-subtle: #94a3b8;
+            --accent: #0F766E;
+            --accent-hover: #115E59;
+            --accent-light: #F0FDFA;
+            --accent-border: #CCFBF1;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --critical: #8E0000;
+            --high: #E7664C;
+            --medium: #FEC514;
+            --low: #54B399;
         }
 
         * {
@@ -35,12 +35,13 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            padding: 24px;
+            padding: 24px 32px;
             line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -48,25 +49,30 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 16px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 18px 24px;
             margin-bottom: 24px;
         }
 
         h1 {
-            font-size: 1.6rem;
-            color: #60a5fa;
-            letter-spacing: -0.5px;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+            margin-bottom: 3px;
         }
 
         .subtitle {
-            font-size: 0.85rem;
+            font-size: 0.825rem;
             color: var(--text-muted);
         }
 
         .top-links {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             align-items: center;
         }
 
@@ -75,8 +81,8 @@
             align-items: center;
             gap: 6px;
             padding: 8px 16px;
-            border-radius: 6px;
-            font-size: 0.875rem;
+            border-radius: 8px;
+            font-size: 0.825rem;
             font-weight: 500;
             cursor: pointer;
             border: 1px solid transparent;
@@ -85,63 +91,73 @@
         }
 
         .btn-primary {
-            background-color: var(--primary);
+            background-color: var(--accent);
             color: #ffffff;
+            border-color: var(--accent);
+            font-weight: 600;
         }
         .btn-primary:hover {
-            background-color: var(--primary-hover);
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
         }
 
         .btn-kibana {
-            background-color: #6366f1;
-            color: #ffffff;
+            background-color: #ffffff;
+            color: var(--accent);
+            border-color: var(--accent);
         }
         .btn-kibana:hover {
-            background-color: #4f46e5;
+            background-color: var(--accent-light);
         }
 
         .btn-secondary {
-            background-color: #334155;
-            color: #e2e8f0;
-            border-color: #475569;
+            background-color: #ffffff;
+            color: #334155;
+            border-color: #cbd5e1;
         }
         .btn-secondary:hover {
-            background-color: #475569;
+            background-color: #f8fafc;
+            border-color: #94a3b8;
+            color: var(--text-main);
         }
 
         .btn-danger {
-            background-color: var(--danger);
-            color: #ffffff;
+            background-color: #ffffff;
+            color: var(--danger);
+            border-color: #fca5a5;
         }
         .btn-danger:hover {
-            background-color: var(--danger-hover);
+            background-color: #fef2f2;
+            border-color: var(--danger);
         }
 
         .grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 20px;
+            gap: 24px;
             margin-bottom: 24px;
         }
 
-        @media (min-width: 900px) {
+        @media (min-width: 960px) {
             .grid-2 {
-                grid-template-columns: 1.2fr 0.8fr;
+                grid-template-columns: 1.15fr 0.85fr;
             }
         }
 
         .card {
             background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 24px;
+            margin-bottom: 24px;
         }
 
         .card-title {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
-            margin-bottom: 16px;
-            color: #e2e8f0;
+            margin-bottom: 18px;
+            color: var(--text-main);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -153,20 +169,31 @@
 
         label {
             display: block;
-            font-size: 0.85rem;
+            font-size: 0.825rem;
             color: var(--text-muted);
             margin-bottom: 6px;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         input[type="file"], select {
             width: 100%;
-            padding: 10px;
-            background-color: #0f172a;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
+            padding: 9px 12px;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
             color: var(--text-main);
             font-size: 0.875rem;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input[type="file"] {
+            background-color: #f8fafc;
+        }
+
+        select:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
         }
 
         .stats-grid {
@@ -177,55 +204,73 @@
         }
 
         .stat-box {
-            background-color: #0f172a;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 12px;
+            background-color: #f8fafc;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 14px 12px;
             text-align: center;
         }
 
         .stat-value {
             font-size: 1.5rem;
             font-weight: 700;
-            color: #38bdf8;
+            color: var(--text-main);
         }
 
         .stat-label {
-            font-size: 0.75rem;
+            font-size: 0.725rem;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            font-weight: 600;
         }
 
         .badge {
-            display: inline-block;
-            padding: 2px 8px;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
             border-radius: 9999px;
-            font-size: 0.75rem;
+            font-size: 0.725rem;
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
+            line-height: 1.3;
         }
 
         .badge-critical {
-            background-color: var(--critical);
-            color: var(--critical-text);
-            border: 1px solid #f43f5e;
+            background-color: #FEF2F2;
+            color: var(--critical);
+            border: 1px solid var(--critical);
         }
 
         .badge-high {
-            background-color: var(--high);
-            color: var(--high-text);
-            border: 1px solid #ef4444;
+            background-color: #FFF7ED;
+            color: var(--high);
+            border: 1px solid var(--high);
+        }
+
+        .badge-medium, .badge-med {
+            background-color: #FEFCE8;
+            color: #92400E;
+            border: 1px solid var(--medium);
+        }
+
+        .badge-low {
+            background-color: #F0FDF4;
+            color: #166534;
+            border: 1px solid var(--low);
         }
 
         .badge-success {
-            background-color: #064e3b;
-            color: #6ee7b7;
+            background-color: #F0FDF4;
+            color: var(--accent);
+            border: 1px solid #A7F3D0;
         }
 
         .badge-info {
-            background-color: #1e3a8a;
-            color: #93c5fd;
+            background-color: var(--accent-light);
+            color: var(--accent);
+            border: 1px solid var(--accent-border);
         }
 
         table {
@@ -236,60 +281,64 @@
         }
 
         th, td {
-            padding: 10px 12px;
+            padding: 11px 14px;
             text-align: left;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid #f1f5f9;
         }
 
         th {
-            background-color: #0f172a;
-            color: var(--text-muted);
+            background-color: #f8fafc;
+            color: #475569;
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 0.75rem;
+            font-size: 0.725rem;
+            letter-spacing: 0.4px;
+            border-bottom: 1px solid var(--card-border);
         }
 
         tr:hover {
-            background-color: rgba(255, 255, 255, 0.02);
+            background-color: #f8fafc;
         }
 
         .alert-box {
-            padding: 12px 16px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 24px;
             font-size: 0.9rem;
+            box-shadow: var(--card-shadow);
         }
 
         .alert-success {
-            background-color: #064e3b;
-            border: 1px solid #059669;
-            color: #ecfdf5;
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
         }
 
         .alert-error {
-            background-color: #7f1d1d;
-            border: 1px solid #dc2626;
-            color: #fef2f2;
+            background-color: #fef2f2;
+            border: 1px solid #fecdd3;
+            color: #991b1b;
         }
 
         .alert-info {
-            background-color: #1e3a8a;
-            border: 1px solid #2563eb;
-            color: #eff6ff;
+            background-color: #f0fdfa;
+            border: 1px solid #ccfbf1;
+            color: #115e59;
         }
 
         .code-snippet {
-            font-family: monospace;
-            background: #090d16;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 0.8rem;
-            color: #e2e8f0;
+            color: #334155;
         }
 
         .empty-state {
             text-align: center;
-            padding: 30px;
+            padding: 36px 20px;
             color: var(--text-muted);
             font-size: 0.9rem;
         }
@@ -303,7 +352,7 @@
                 <div class="subtitle">BCSSL Lab 07 &bull; 7-Stage Pipeline &bull; Detection &amp; Investigation</div>
             </div>
             <div class="top-links">
-                <a href="/investigation" class="btn btn-primary" style="background-color: #0284c7;">
+                <a href="/investigation" class="btn btn-primary">
                     🔬 Investigation Lab
                 </a>
                 <a href="{{ kibana_url }}/app/dashboards#/view/soc-triage-board-dashboard" target="_blank" class="btn btn-kibana">
@@ -369,7 +418,7 @@
                         <div class="stat-label">Events Indexed</div>
                     </div>
                     <div class="stat-box">
-                        <div class="stat-value" style="color: #f87171;">{{ alerts_count }}</div>
+                        <div class="stat-value" style="color: var(--high);">{{ alerts_count }}</div>
                         <div class="stat-label">Alerts Raised</div>
                     </div>
                 </div>
@@ -382,7 +431,7 @@
                     </form>
 
                     <form action="/generate-samples" method="post">
-                        <button type="submit" class="btn btn-secondary" style="width: 100%; background-color: #0d9488;">
+                        <button type="submit" class="btn btn-secondary" style="width: 100%; border-color: var(--accent); color: var(--accent);">
                             Generate &amp; Ingest Training Dataset
                         </button>
                     </form>
@@ -404,23 +453,23 @@
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
                 <!-- Windows Sysmon -->
-                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px;">
-                    <div style="font-weight: 600; color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">Windows (Sysmon / Security JSONL)</div>
-                    <pre style="font-size: 0.75rem; color: #94a3b8; overflow-x: auto; white-space: pre-wrap;">{"EventID": 4624, "TimeCreated": "2026-10-13T10:15:30Z", "Computer": "WIN-SRV01", "TargetUserName": "alice", "IpAddress": "192.168.1.50"}
+                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 600; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px;">Windows (Sysmon / Security JSONL)</div>
+                    <pre style="font-size: 0.75rem; color: #475569; overflow-x: auto; white-space: pre-wrap;">{"EventID": 4624, "TimeCreated": "2026-10-13T10:15:30Z", "Computer": "WIN-SRV01", "TargetUserName": "alice", "IpAddress": "192.168.1.50"}
 {"EventID": 4688, "TimeCreated": "2026-10-13T10:16:00Z", "Computer": "WIN-SRV01", "TargetUserName": "alice", "NewProcessName": "powershell.exe"}</pre>
                 </div>
 
                 <!-- Linux Auditd -->
-                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px;">
-                    <div style="font-weight: 600; color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">Linux (auditd / auth.log)</div>
-                    <pre style="font-size: 0.75rem; color: #94a3b8; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 srv01 sshd[123]: Failed password for invalid user root from 203.0.113.88 port 4210 ssh2
+                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 600; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px;">Linux (auditd / auth.log)</div>
+                    <pre style="font-size: 0.75rem; color: #475569; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 srv01 sshd[123]: Failed password for invalid user root from 203.0.113.88 port 4210 ssh2
 type=SYSCALL msg=audit(1697191230.123:456): arch=c000003e syscall=59 success=yes exit=0 exe="/usr/bin/cat" name="/etc/shadow" host=srv01</pre>
                 </div>
 
                 <!-- Network Firewall -->
-                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px;">
-                    <div style="font-weight: 600; color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">Network Firewall (UFW / iptables)</div>
-                    <pre style="font-size: 0.75rem; color: #94a3b8; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5510 DPT=22
+                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 600; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px;">Network Firewall (UFW / iptables)</div>
+                    <pre style="font-size: 0.75rem; color: #475569; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5510 DPT=22
 Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5511 DPT=80</pre>
                 </div>
             </div>
@@ -440,13 +489,13 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                     <div class="stat-label">Events Parsed</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-value" style="color: {% if upload_summary.skipped|length > 0 %}#fbbf24{% else %}#34d399{% endif %};">
+                    <div class="stat-value" style="color: {% if upload_summary.skipped|length > 0 %}#d97706{% else %}var(--low){% endif %};">
                         {{ upload_summary.skipped|length }}
                     </div>
                     <div class="stat-label">Lines Skipped</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-value" style="color: #f87171;">
+                    <div class="stat-value" style="color: var(--high);">
                         {{ upload_summary.alerts|length }}
                     </div>
                     <div class="stat-label">New Alerts Triggered</div>
@@ -455,7 +504,7 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
 
             {% if upload_summary.skipped|length > 0 %}
             <div style="margin-top: 16px;">
-                <label style="color: #f59e0b; font-weight: 600;">Skipped Lines Report (Tolerant Ingestion)</label>
+                <label style="color: #b45309; font-weight: 600;">Skipped Lines Report (Tolerant Ingestion)</label>
                 <div style="max-height: 180px; overflow-y: auto;">
                     <table>
                         <thead>
@@ -469,7 +518,7 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                             {% for item in upload_summary.skipped %}
                             <tr>
                                 <td>{{ item.line_number }}</td>
-                                <td style="color: #fca5a5;">{{ item.reason }}</td>
+                                <td style="color: var(--high);">{{ item.reason }}</td>
                                 <td><span class="code-snippet">{{ item.raw }}</span></td>
                             </tr>
                             {% endfor %}
@@ -489,18 +538,18 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
             </div>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
                 <!-- Panel 1: Alerts by Severity -->
-                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px;">
-                    <div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px;">
+                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
+                    <div style="font-size: 0.825rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.3px;">
                         1. Alerts by Severity
                     </div>
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <div style="flex: 1; background-color: var(--critical); border: 1px solid #f43f5e; padding: 10px; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 1.3rem; font-weight: bold; color: var(--critical-text);">{{ sev_counts.critical }}</div>
-                            <div style="font-size: 0.7rem; color: #fecdd3; text-transform: uppercase;">Critical</div>
+                        <div style="flex: 1; background-color: #FEF2F2; border: 1px solid var(--critical); padding: 12px 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.35rem; font-weight: bold; color: var(--critical);">{{ sev_counts.critical }}</div>
+                            <div style="font-size: 0.7rem; color: var(--critical); text-transform: uppercase; font-weight: 600;">Critical</div>
                         </div>
-                        <div style="flex: 1; background-color: var(--high); border: 1px solid #ef4444; padding: 10px; border-radius: 6px; text-align: center;">
-                            <div style="font-size: 1.3rem; font-weight: bold; color: var(--high-text);">{{ sev_counts.high }}</div>
-                            <div style="font-size: 0.7rem; color: #fee2e2; text-transform: uppercase;">High</div>
+                        <div style="flex: 1; background-color: #FFF7ED; border: 1px solid var(--high); padding: 12px 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 1.35rem; font-weight: bold; color: var(--high);">{{ sev_counts.high }}</div>
+                            <div style="font-size: 0.7rem; color: var(--high); text-transform: uppercase; font-weight: 600;">High</div>
                         </div>
                     </div>
                     <div style="font-size: 0.75rem; color: var(--text-muted);">
@@ -509,8 +558,8 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                 </div>
 
                 <!-- Panel 2: Top Source IPs -->
-                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px;">
-                    <div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px;">
+                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
+                    <div style="font-size: 0.825rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.3px;">
                         2. Top Attacking Source IPs
                     </div>
                     {% if top_ips|length > 0 %}
@@ -536,8 +585,8 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                 </div>
 
                 <!-- Panel 3: Post-Logon Suspicious Hosts -->
-                <div style="background-color: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; padding: 16px;">
-                    <div style="font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px;">
+                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
+                    <div style="font-size: 0.825rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.3px;">
                         3. Suspicious Execution Hosts
                     </div>
                     {% if suspicious_hosts|length > 0 %}
@@ -552,7 +601,7 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                         <tbody>
                             {% for sh in suspicious_hosts %}
                             <tr>
-                                <td style="color: #60a5fa; font-weight: 500;">{{ sh.host }}</td>
+                                <td style="color: var(--text-main); font-weight: 600;">{{ sh.host }}</td>
                                 <td>{{ sh.user }}</td>
                                 <td><span class="code-snippet">2 events</span></td>
                             </tr>

@@ -6,17 +6,22 @@
     <title>BCSSL Lab 07 - Student Investigation Workspace</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --border-color: #334155;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-            --kibana: #6366f1;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --card-border: #e2e8f0;
+            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --text-subtle: #94a3b8;
+            --accent: #0F766E;
+            --accent-hover: #115E59;
+            --accent-light: #F0FDFA;
+            --accent-border: #CCFBF1;
+            --danger: #dc2626;
+            --critical: #8E0000;
+            --high: #E7664C;
+            --medium: #FEC514;
+            --low: #54B399;
         }
 
         * {
@@ -29,12 +34,13 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            padding: 24px;
+            padding: 24px 32px;
             line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -42,19 +48,24 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 16px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 18px 24px;
             margin-bottom: 24px;
         }
 
         h1 {
-            font-size: 1.6rem;
-            color: #60a5fa;
-            letter-spacing: -0.5px;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+            margin-bottom: 3px;
         }
 
         .subtitle {
-            font-size: 0.85rem;
+            font-size: 0.825rem;
             color: var(--text-muted);
         }
 
@@ -68,9 +79,9 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-size: 0.85rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.825rem;
             font-weight: 500;
             cursor: pointer;
             border: 1px solid transparent;
@@ -78,59 +89,125 @@
             transition: all 0.15s ease-in-out;
         }
 
-        .btn-primary { background-color: var(--primary); color: #fff; }
-        .btn-primary:hover { background-color: var(--primary-hover); }
-        .btn-secondary { background-color: #334155; color: #fff; }
-        .btn-secondary:hover { background-color: #475569; }
-        .btn-kibana { background-color: var(--kibana); color: #fff; }
-        .btn-kibana:hover { background-color: #4f46e5; }
-        .btn-success { background-color: var(--success); color: #fff; }
+        .btn-primary {
+            background-color: var(--accent);
+            color: #ffffff;
+            border-color: var(--accent);
+            font-weight: 600;
+        }
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background-color: #ffffff;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+        .btn-secondary:hover {
+            background-color: #f8fafc;
+            border-color: #94a3b8;
+            color: var(--text-main);
+        }
+
+        .btn-kibana {
+            background-color: #ffffff;
+            color: var(--accent);
+            border-color: var(--accent);
+        }
+        .btn-kibana:hover {
+            background-color: var(--accent-light);
+        }
+
+        .btn-success {
+            background-color: var(--accent);
+            color: #ffffff;
+        }
 
         .card {
             background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            padding: 24px;
             margin-bottom: 24px;
         }
 
         .card-title {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
-            color: #e2e8f0;
+            color: var(--text-main);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 12px;
         }
 
         .badge {
-            display: inline-block;
-            padding: 3px 8px;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
             border-radius: 9999px;
-            font-size: 0.75rem;
+            font-size: 0.725rem;
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
+            line-height: 1.3;
         }
-        .badge-mitre { background-color: #312e81; color: #c7d2fe; border: 1px solid #4338ca; }
-        .badge-high { background-color: #7f1d1d; color: #fca5a5; }
-        .badge-crit { background-color: #881337; color: #fda4af; }
-        .badge-med { background-color: #78350f; color: #fcd34d; }
+        .badge-mitre {
+            background-color: #f8fafc;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+        }
+        .badge-high {
+            background-color: #FFF7ED;
+            color: var(--high);
+            border: 1px solid var(--high);
+        }
+        .badge-crit {
+            background-color: #FEF2F2;
+            color: var(--critical);
+            border: 1px solid var(--critical);
+        }
+        .badge-med {
+            background-color: #FEFCE8;
+            color: #92400E;
+            border: 1px solid var(--medium);
+        }
 
         .grid-2 {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 1024px) {
+            .grid-2 {
+                grid-template-columns: 460px 1fr;
+            }
         }
 
         .scenario-box {
-            background-color: #0f172a;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
+            background-color: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
             padding: 16px;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .scenario-box:hover {
+            border-color: var(--accent);
+            box-shadow: 0 2px 4px rgba(15, 118, 110, 0.08);
+        }
+
+        .scenario-box.selected {
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 0 1px var(--accent), 0 2px 6px rgba(15, 118, 110, 0.12);
         }
 
         .scenario-header {
@@ -142,13 +219,13 @@
 
         .scenario-name {
             font-weight: 600;
-            color: #38bdf8;
+            color: var(--text-main);
             font-size: 0.95rem;
         }
 
         .scenario-desc {
             font-size: 0.85rem;
-            color: #cbd5e1;
+            color: #475569;
             margin-bottom: 10px;
         }
 
@@ -165,12 +242,13 @@
             display: flex;
             align-items: flex-start;
             gap: 12px;
-            padding: 10px 12px;
-            background-color: #0f172a;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
+            padding: 12px 14px;
+            background-color: #f8fafc;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
             margin-bottom: 8px;
             font-size: 0.875rem;
+            transition: all 0.15s ease-in-out;
         }
 
         .checklist-item input[type="checkbox"] {
@@ -178,17 +256,17 @@
             width: 18px;
             height: 18px;
             cursor: pointer;
-            accent-color: var(--primary);
+            accent-color: var(--accent);
         }
 
         .checklist-item.completed {
-            background-color: #064e3b22;
-            border-color: #065f46;
+            background-color: #f0fdf4;
+            border-color: #86efac;
         }
 
         .checklist-step-num {
             font-weight: 700;
-            color: #38bdf8;
+            color: var(--accent);
             min-width: 55px;
         }
 
@@ -198,7 +276,7 @@
 
         .checklist-title {
             font-weight: 600;
-            color: #f1f5f9;
+            color: var(--text-main);
         }
 
         .checklist-desc {
@@ -209,47 +287,51 @@
 
         /* Findings Form */
         .form-group {
-            margin-bottom: 14px;
+            margin-bottom: 16px;
         }
 
         label {
             display: block;
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
+            letter-spacing: 0.4px;
             margin-bottom: 6px;
         }
 
         input[type="text"], select, textarea {
             width: 100%;
-            padding: 8px 12px;
-            background-color: #0f172a;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
+            padding: 9px 12px;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
             color: var(--text-main);
             font-size: 0.875rem;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
 
         textarea {
             resize: vertical;
-            min-height: 75px;
+            min-height: 80px;
             font-family: inherit;
         }
 
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: var(--primary);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
         }
 
         .alert-box {
-            padding: 12px 16px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 24px;
             font-size: 0.9rem;
+            box-shadow: var(--card-shadow);
         }
-        .alert-success { background-color: #064e3b; border: 1px solid #059669; color: #6ee7b7; }
-        .alert-info { background-color: #1e3a8a; border: 1px solid #2563eb; color: #bfdbfe; }
+        .alert-success { background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+        .alert-info { background-color: #f0fdfa; border: 1px solid #ccfbf1; color: #115e59; }
     </style>
 </head>
 <body>
@@ -305,7 +387,7 @@
                     </div>
 
                     <!-- Scenario 1 -->
-                    <div class="scenario-box">
+                    <div class="scenario-box {% if current_scenario == 'scenario_1' or not current_scenario %}selected{% endif %}" onclick="loadScenarioData('scenario_1')">
                         <div class="scenario-header">
                             <span class="scenario-name">1. Brute Force Authentication</span>
                             <span class="badge badge-crit">Critical / High</span>
@@ -320,7 +402,7 @@
                     </div>
 
                     <!-- Scenario 2 -->
-                    <div class="scenario-box">
+                    <div class="scenario-box {% if current_scenario == 'scenario_2' %}selected{% endif %}" onclick="loadScenarioData('scenario_2')">
                         <div class="scenario-header">
                             <span class="scenario-name">2. Suspicious Process Execution</span>
                             <span class="badge badge-high">High</span>
@@ -335,7 +417,7 @@
                     </div>
 
                     <!-- Scenario 3 -->
-                    <div class="scenario-box">
+                    <div class="scenario-box {% if current_scenario == 'scenario_3' %}selected{% endif %}" onclick="loadScenarioData('scenario_3')">
                         <div class="scenario-header">
                             <span class="scenario-name">3. Privilege-Related Activity</span>
                             <span class="badge badge-high">High</span>
@@ -350,7 +432,7 @@
                     </div>
 
                     <!-- Scenario 4 -->
-                    <div class="scenario-box">
+                    <div class="scenario-box {% if current_scenario == 'scenario_4' %}selected{% endif %}" onclick="loadScenarioData('scenario_4')">
                         <div class="scenario-header">
                             <span class="scenario-name">4. Network-Based Suspicious Activity</span>
                             <span class="badge badge-high">High / Med</span>
@@ -365,7 +447,7 @@
                     </div>
 
                     <!-- Scenario 5 -->
-                    <div class="scenario-box">
+                    <div class="scenario-box {% if current_scenario == 'scenario_5' %}selected{% endif %}" onclick="loadScenarioData('scenario_5')">
                         <div class="scenario-header">
                             <span class="scenario-name">5. Sensitive File Access &amp; Lateral Movement</span>
                             <span class="badge badge-high">High</span>
