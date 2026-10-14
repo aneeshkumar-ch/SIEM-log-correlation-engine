@@ -1,4 +1,4 @@
-# BCSSL Lab 07: SIEM Log Correlation Engine & Investigation Platform
+# Lab 07: SIEM Log Correlation Engine & Investigation Platform
 **7-Stage Enterprise SIEM Architecture & Threat Detection Engineering**  
 *Location: `D:\PROJECTS\SIEM-CORRELATION-ENGINE`*
 
