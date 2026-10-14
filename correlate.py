@@ -275,18 +275,21 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
         is_priv_event = False
         reason = ""
 
-        # Windows Event 4672 or explicit privilege_escalation
+        user = ev.get("user")
+
+        # Windows Event 4672 or explicit privilege_escalation (skip legitimate admin accounts)
         if ev.get("event_type") == "privilege_escalation":
-            is_priv_event = True
-            reason = "Privilege escalation or special privileges assigned"
+            if not is_admin_user(user):
+                is_priv_event = True
+                reason = f"Privilege escalation or special privileges assigned to non-admin user {user}"
         elif ev.get("privilege") or str(ev.get("raw_log", "")).find("4672") != -1:
-            is_priv_event = True
-            reason = "Special privileges assigned (Event 4672)"
+            if not is_admin_user(user):
+                is_priv_event = True
+                reason = f"Special privileges assigned to non-admin user {user} (Event 4672)"
 
         # Linux sudo / su execution by non-admin user
         proc = str(ev.get("process_name", "")).lower()
         raw = str(ev.get("raw_log", "")).lower()
-        user = ev.get("user")
 
         if any(cmd in proc for cmd in config.PRIVILEGE_COMMANDS) or "sudo:" in raw:
             if not is_admin_user(user):

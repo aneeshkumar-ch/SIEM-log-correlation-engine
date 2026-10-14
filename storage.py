@@ -28,7 +28,8 @@ EVENTS_MAPPING = {
         "raw": {"type": "text"},              # compatibility text
         "ip_tags": {"type": "keyword"},
         "action": {"type": "keyword"},
-        "file_path": {"type": "keyword"}
+        "file_path": {"type": "keyword"},
+        "parent_process": {"type": "keyword"}
     }
 }
 

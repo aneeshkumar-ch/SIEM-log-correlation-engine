@@ -74,7 +74,14 @@ def make_cardinality_col(source_field: str, label: str):
     }
 
 
-def make_date_histogram_col(source_field: str, label: str = "Timestamp"):
+def make_date_histogram_col(source_field: str, label: str = "Timestamp", desc: bool = False):
+    params = {
+        "interval": "auto",
+        "includeEmptyRows": False if desc else True,
+        "dropPartials": False
+    }
+    if desc:
+        params["orderDirection"] = "desc"
     return {
         "label": label,
         "dataType": "date",
@@ -82,11 +89,7 @@ def make_date_histogram_col(source_field: str, label: str = "Timestamp"):
         "sourceField": source_field,
         "isBucketed": True,
         "scale": "interval",
-        "params": {
-            "interval": "auto",
-            "includeEmptyRows": True,
-            "dropPartials": False
-        }
+        "params": params
     }
 
 
@@ -696,7 +699,7 @@ objects.append({
                         "layer_1": {
                             "columnOrder": ["col_time", "col_rule", "col_sev", "col_user", "col_ip", "col_host", "col_mitre", "col_count"],
                             "columns": {
-                                "col_time": make_terms_col("first_seen", "Timestamp", size=25, alphabetical=True, desc=True),
+                                "col_time": make_date_histogram_col("first_seen", "Timestamp", desc=True),
                                 "col_rule": make_terms_col("rule_name", "Rule Name", size=10, alphabetical=True),
                                 "col_sev": make_terms_col("severity", "Severity", size=5, alphabetical=True),
                                 "col_user": make_terms_col("user", "User", size=5, alphabetical=True),

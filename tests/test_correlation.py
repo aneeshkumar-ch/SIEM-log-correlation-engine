@@ -422,5 +422,38 @@ def test_rule4b_benign_medium_severity_non_network_events(mock_es):
     assert len(rule4b_alerts) == 0, f"Rule 4B fired on non-network medium severity events: {rule4b_alerts}"
 
 
+def test_unusual_process_unexpected_parent_firing(mock_es):
+    """Asserts that user emma on WIN-HR03 executing powershell.exe spawned from winword.exe
+    triggers an alert (Unusual Process Execution) even long after logon."""
+    csv_content = """timestamp,host,event_id,user,source_ip,process_name,parent_process
+2026-10-12T13:00:00Z,WIN-HR03,4624,emma,,,
+2026-10-12T15:10:30Z,WIN-HR03,4688,emma,,powershell.exe,winword.exe
+"""
+    events, _ = normalizer.normalize_content(csv_content, "windows_security")
+    assert len(events) == 2
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+    alerts = correlate.run_correlation(mock_es)
+    emma_alerts = [a for a in alerts if a.get("user") == "emma" and a.get("host") == "WIN-HR03"]
+    assert len(emma_alerts) == 1, f"Expected 1 alert for emma, got: {emma_alerts}"
+    assert emma_alerts[0]["rule_name"] == "Unusual Process Execution"
+    assert "winword.exe" in emma_alerts[0]["description"].lower()
+
+
+def test_administrator_winadm01_logon_privilege_benign(mock_es):
+    """Asserts that user Administrator on WIN-ADM01 (logon 4624, special privileges 4672,
+    and powershell.exe started by explorer.exe 4688) must NOT alert."""
+    csv_content = """timestamp,host,event_id,user,source_ip,process_name,parent_process
+2026-10-12T12:00:00Z,WIN-ADM01,4624,Administrator,,,
+2026-10-12T12:00:01Z,WIN-ADM01,4672,Administrator,,,
+2026-10-12T12:00:40Z,WIN-ADM01,4688,Administrator,,powershell.exe,explorer.exe
+"""
+    events, _ = normalizer.normalize_content(csv_content, "windows_security")
+    assert len(events) == 3
+    bulk_index_events(mock_es, events, config.INDEX_EVENTS)
+    alerts = correlate.run_correlation(mock_es)
+    admin_alerts = [a for a in alerts if a.get("user") == "Administrator" or a.get("host") == "WIN-ADM01"]
+    assert len(admin_alerts) == 0, f"Expected 0 alerts for Administrator on WIN-ADM01, got: {admin_alerts}"
+
+
 
 

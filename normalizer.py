@@ -75,6 +75,10 @@ FIELD_ALIASES = {
     ],
     "file_path": [
         "file_path", "filename", "path", "target_filename", "name"
+    ],
+    "parent_process": [
+        "parent_process", "parentprocess", "parentprocessname", "parent_process_name",
+        "parentimage", "parent_image", "process.parent.name", "process.parent.executable"
     ]
 }
 
@@ -236,7 +240,8 @@ def assemble_normalized_doc(
     severity: str,
     host: str,
     raw_log: str,
-    extra_fields: Optional[Dict[str, Any]] = None
+    extra_fields: Optional[Dict[str, Any]] = None,
+    parent_process: Optional[str] = None
 ) -> Dict[str, Any]:
     """Constructs the canonical normalized document with backward compatibility fields."""
     s_ip = sanitize_ip(source_ip)
@@ -262,6 +267,7 @@ def assemble_normalized_doc(
         "dest_ip": d_ip,
         "destination_port": destination_port,
         "process_name": process_name,
+        "parent_process": clean_process_name(parent_process) if parent_process else None,
         "severity": severity.lower(),
         "host": str(host).strip() if host else "unknown",
         "raw_log": raw_log.strip(),
@@ -305,6 +311,7 @@ def parse_windows_sysmon(data: Dict[str, Any], raw_line: str, source_type: str =
     dst_ip = extract_field_by_aliases(data, "destination_ip")
     dst_port = extract_field_by_aliases(data, "destination_port")
     proc_name = clean_process_name(extract_field_by_aliases(data, "process_name"))
+    parent_proc = clean_process_name(extract_field_by_aliases(data, "parent_process"))
 
     event_type = None
     severity = "low"
@@ -365,7 +372,8 @@ def parse_windows_sysmon(data: Dict[str, Any], raw_line: str, source_type: str =
         severity=severity,
         host=str(host),
         raw_log=raw_line,
-        extra_fields=extra
+        extra_fields=extra,
+        parent_process=parent_proc
     )
     return doc, None
 
@@ -731,7 +739,8 @@ def normalize_windows_security_line(line: str) -> Tuple[Optional[Dict[str, Any]]
                 "event_id": found_eid,
                 "user": parts[3] if len(parts) > 3 else None,
                 "source_ip": parts[4] if len(parts) > 4 else None,
-                "process_name": parts[5] if len(parts) > 5 else None
+                "process_name": parts[5] if len(parts) > 5 else None,
+                "parent_process": parts[6] if len(parts) > 6 else None
             }
             return parse_windows_sysmon(data, raw, source_type="windows_security")
 
