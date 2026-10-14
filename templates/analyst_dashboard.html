@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIEM Log Correlation Dashboard</title>
+  <style>
+    :root {
+      /* Count cards */
+      --card-total-bg: #F1EFE8;
+      --card-total-text: #2C2C2A;
+      --card-critical-bg: #8E0000;
+      --card-critical-text: #FFFFFF;
+      --card-high-bg: #E7664C;
+      --card-high-text: #4A1B0C;
+      --card-medium-bg: #FEC514;
+      --card-medium-text: #412402;
+
+      /* Severity series */
+      --sev-critical: #8E0000;
+      --sev-high: #E7664C;
+      --sev-medium: #FEC514;
+      --sev-low: #54B399;
+
+      /* Tag and accents */
+      --tag-color: #2B2F7E;
+      --ornament-red: #E8483B;
+      --border-color: #D1D5DB;
+      --card-border: #E5E7EB;
+      --text-main: #1F2937;
+      --text-muted: #6B7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #FFFFFF;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 24px 32px 48px;
+      line-height: 1.4;
+      min-width: 900px;
+    }
+
+    .dashboard-container {
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* Top Header */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dashboard-title {
+      font-size: 30px;
+      font-weight: 300;
+      color: #111827;
+      letter-spacing: -0.3px;
+      margin-bottom: 8px;
+    }
+
+    .title-underline {
+      display: flex;
+      height: 4px;
+      width: 80px;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .underline-red {
+      width: 50%;
+      background-color: #E8483B;
+    }
+
+    .underline-navy {
+      width: 50%;
+      background-color: #2B2F7E;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .refresh-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: #F3F4F6;
+      border: 1px solid #E5E7EB;
+      border-radius: 9999px;
+      font-size: 12px;
+      color: #4B5563;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s ease;
+    }
+
+    .refresh-pill:hover {
+      background: #E5E7EB;
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background-color: #10B981;
+      display: inline-block;
+    }
+
+    /* Row 1: Four Count Cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .metric-card.total {
+      background-color: var(--card-total-bg);
+      color: var(--card-total-text);
+    }
+
+    .metric-card.critical {
+      background-color: var(--card-critical-bg);
+      color: var(--card-critical-text);
+    }
+
+    .metric-card.high {
+      background-color: var(--card-high-bg);
+      color: var(--card-high-text);
+    }
+
+    .metric-card.medium {
+      background-color: var(--card-medium-bg);
+      color: var(--card-medium-text);
+    }
+
+    .metric-label {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 34px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    /* Panels Container */
+    .panel {
+      background-color: #FFFFFF;
+      border: 1px solid #D5D7DC;
+      border-radius: 12px;
+      padding: 14px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Centered navy tag line with red circle ornaments */
+    .panel-header-line {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      width: 100%;
+    }
+
+    .panel-header-line::before {
+      content: "";
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 50%;
+      height: 1px;
+      background-color: #E2E4E9;
+      z-index: 1;
+    }
+
+    .panel-tag {
+      position: relative;
+      z-index: 2;
+      background-color: var(--tag-color);
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 4px 18px;
+      border-radius: 6px;
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+    }
+
+    .ornament-left, .ornament-right {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--ornament-red);
+      z-index: 2;
+    }
+
+    .ornament-left { left: 8px; }
+    .ornament-right { right: 8px; }
+
+    .panel-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 190px;
+      width: 100%;
+    }
+
+    /* Grid Row 2 (3 columns) */
+    .grid-row-three {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    /* Grid Row 3 (2 columns) */
+    .grid-row-two {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 16px;
+    }
+
+    /* SVG Containers */
+    .chart-svg {
+      width: 100%;
+      height: 100%;
+      max-height: 200px;
+      display: block;
+    }
+
+    /* Recent Alerts Table / List */
+    .alerts-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .alert-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: #F9FAFB;
+      border: 1px solid #F3F4F6;
+      font-size: 12px;
+    }
+
+    .alert-row:hover {
+      background: #F3F4F6;
+    }
+
+    .alert-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .alert-meta {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: var(--text-muted);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .alert-rule-title {
+      font-weight: 600;
+      color: #111827;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 220px;
+    }
+
+    .alert-user-host {
+      color: #4B5563;
+      font-size: 11px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .badge-critical {
+      background-color: var(--sev-critical);
+      color: #FFFFFF;
+    }
+
+    .badge-high {
+      background-color: var(--sev-high);
+      color: #4A1B0C;
+    }
+
+    .badge-medium {
+      background-color: var(--sev-medium);
+      color: #412402;
+    }
+
+    .badge-low {
+      background-color: var(--sev-low);
+      color: #FFFFFF;
+    }
+
+    /* Empty State Styling */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 160px;
+      color: #9CA3AF;
+      font-size: 13px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .empty-icon {
+      width: 32px;
+      height: 32px;
+      margin-bottom: 8px;
+      stroke: #D1D5DB;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="title-group">
+        <h1 class="dashboard-title">SIEM Log Correlation Dashboard</h1>
+        <div class="title-underline">
+          <span class="underline-red"></span>
+          <span class="underline-navy"></span>
+        </div>
+      </div>
+      <div class="header-controls">
+        <span id="update-timestamp">Last updated: Just now</span>
+        <div class="refresh-pill" id="manual-refresh-btn" title="Refresh dashboard data">
+          <span class="pulse-dot"></span>
+          <span>Live (30s)</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Row 1: Four Count Cards -->
+    <section class="metric-grid">
+      <div class="metric-card total">
+        <div class="metric-label">Total</div>
+        <div class="metric-value" id="card-val-total">0</div>
+      </div>
+      <div class="metric-card critical">
+        <div class="metric-label">Critical</div>
+        <div class="metric-value" id="card-val-critical">0</div>
+      </div>
+      <div class="metric-card high">
+        <div class="metric-label">High</div>
+        <div class="metric-value" id="card-val-high">0</div>
+      </div>
+      <div class="metric-card medium">
+        <div class="metric-label">Medium</div>
+        <div class="metric-value" id="card-val-medium">0</div>
+      </div>
+    </section>
+
+    <!-- Row 2: Severity over time, Categories, Top hosts -->
+    <section class="grid-row-three">
+      <!-- Panel 1: Severity over time -->
+      <div class="panel">
+        <div class="panel-header-line">
+          <span class="ornament-left"></span>
+          <span class="panel-tag">Severity over time</span>
+          <span class="ornament-right"></span>
+        </div>
+        <div class="panel-content" id="panel-severity-over-time">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Panel 2: Event categories -->
+      <div class="panel">
+        <div class="panel-header-line">
+          <span class="ornament-left"></span>
+          <span class="panel-tag">Categories</span>
+          <span class="ornament-right"></span>
+        </div>
+        <div class="panel-content" id="panel-event-categories">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Panel 3: Top hosts -->
+      <div class="panel">
+        <div class="panel-header-line">
+          <span class="ornament-left"></span>
+          <span class="panel-tag">Top hosts</span>
+          <span class="ornament-right"></span>
+        </div>
+        <div class="panel-content" id="panel-top-hosts">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Row 3: Recent alerts, Events by log source -->
+    <section class="grid-row-two">
+      <!-- Panel 4: Recent alerts -->
+      <div class="panel">
+        <div class="panel-header-line">
+          <span class="ornament-left"></span>
+          <span class="panel-tag">Recent alerts</span>
+          <span class="ornament-right"></span>
+        </div>
+        <div class="panel-content" id="panel-recent-alerts">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Panel 5: Events by log source (Radar chart) -->
+      <div class="panel">
+        <div class="panel-header-line">
+          <span class="ornament-left"></span>
+          <span class="panel-tag">Log sources</span>
+          <span class="ornament-right"></span>
+        </div>
+        <div class="panel-content" id="panel-log-sources">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Severity and palette constants
+    const SEV_COLORS = {
+      critical: "#8E0000",
+      high: "#E7664C",
+      medium: "#FEC514",
+      low: "#54B399"
+    };
+
+    const CHART_PALETTE = [
+      "#E8483B",
+      "#C21807",
+      "#F28B82",
+      "#F6B5AE",
+      "#FBDAD6",
+      "#6C73D6",
+      "#C9CCF2"
+    ];
+
+    async function fetchDashboardData() {
+      try {
+        const queryParams = window.location.search || "";
+        const resp = await fetch("/api/dashboard-data" + queryParams);
+        if (!resp.ok) throw new Error("Network error fetching dashboard data");
+        const data = await resp.json();
+        renderDashboard(data);
+        const now = new Date();
+        document.getElementById("update-timestamp").textContent = "Last updated: " + now.toLocaleTimeString();
+      } catch (err) {
+        console.error("Dashboard data fetch error:", err);
+      }
+    }
+
+    function renderDashboard(data) {
+      // 1. Update Count Cards
+      const counts = data.counts || { total: 0, critical: 0, high: 0, medium: 0 };
+      document.getElementById("card-val-total").textContent = counts.total || 0;
+      document.getElementById("card-val-critical").textContent = counts.critical || 0;
+      document.getElementById("card-val-high").textContent = counts.high || 0;
+      document.getElementById("card-val-medium").textContent = counts.medium || 0;
+
+      // 2. Render Panels
+      renderSeverityOverTime(data.severity_over_time);
+      renderEventCategories(data.event_categories);
+      renderTopHosts(data.top_hosts);
+      renderRecentAlerts(data.recent_alerts);
+      renderLogSourcesRadar(data.log_sources);
+    }
+
+    // Panel 1: Stacked Bar Chart for Severity Over Time
+    function renderSeverityOverTime(buckets) {
+      const container = document.getElementById("panel-severity-over-time");
+      if (!buckets || buckets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <div>No alerts recorded in time range</div>
+          </div>`;
+        return;
+      }
+
+      const svgWidth = 320;
+      const svgHeight = 170;
+      const chartBottom = 150;
+      const chartTop = 20;
+      const chartHeight = chartBottom - chartTop;
+
+      const maxTotal = Math.max(...buckets.map(b => (b.total || 0)), 1);
+
+      const n = buckets.length;
+      const barWidth = Math.min(28, (svgWidth - 40) / (n * 1.5));
+      const gap = (svgWidth - 40 - (n * barWidth)) / (n > 1 ? (n - 1) : 1);
+
+      let rects = "";
+      buckets.forEach((b, i) => {
+        const x = 20 + i * (barWidth + (n > 1 ? gap : 0));
+        let currentY = chartBottom;
+
+        // Severities stacked from bottom up: low, medium, high, critical
+        const series = [
+          { key: "low", val: b.low || 0, color: SEV_COLORS.low },
+          { key: "medium", val: b.medium || 0, color: SEV_COLORS.medium },
+          { key: "high", val: b.high || 0, color: SEV_COLORS.high },
+          { key: "critical", val: b.critical || 0, color: SEV_COLORS.critical }
+        ];
+
+        series.forEach(s => {
+          if (s.val > 0) {
+            const h = (s.val / maxTotal) * chartHeight;
+            currentY -= h;
+            rects += `<rect x="${x.toFixed(1)}" y="${currentY.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${h.toFixed(1)}" fill="${s.color}" rx="2" />`;
+          }
+        });
+      });
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">
+          <!-- Baseline -->
+          <line x1="10" y1="${chartBottom}" x2="${svgWidth - 10}" y2="${chartBottom}" stroke="#E5E7EB" stroke-width="1.5" />
+          ${rects}
+        </svg>`;
+    }
+
+    // Panel 2: Pie Chart with percentage labels on both sides
+    function renderEventCategories(categories) {
+      const container = document.getElementById("panel-event-categories");
+      if (!categories || categories.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+            </svg>
+            <div>No event categories found</div>
+          </div>`;
+        return;
+      }
+
+      const total = categories.reduce((sum, c) => sum + (c.count || 0), 0);
+      if (total === 0) {
+        container.innerHTML = `<div class="empty-state">No events telemetry</div>`;
+        return;
+      }
+
+      const cx = 160;
+      const cy = 85;
+      const r = 52;
+      let startAngle = -Math.PI / 2;
+
+      // Collect slice data and categorize labels into left and right
+      const leftLabels = [];
+      const rightLabels = [];
+      let paths = "";
+
+      categories.forEach((cat, idx) => {
+        const fraction = (cat.count || 0) / total;
+        const sliceAngle = fraction * 2 * Math.PI;
+        const endAngle = startAngle + sliceAngle;
+        const color = CHART_PALETTE[idx % CHART_PALETTE.length];
+
+        // Slice path
+        const x1 = cx + r * Math.cos(startAngle);
+        const y1 = cy + r * Math.sin(startAngle);
+        const x2 = cx + r * Math.cos(endAngle);
+        const y2 = cy + r * Math.sin(endAngle);
+
+        const largeArc = sliceAngle > Math.PI ? 1 : 0;
+        const pathData = fraction >= 0.999
+          ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" />`
+          : `<path d="M ${cx} ${cy} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z" fill="${color}" stroke="#FFFFFF" stroke-width="1.5" />`;
+
+        paths += pathData;
+
+        // Collect label
+        const midAngle = startAngle + sliceAngle / 2;
+        const isRight = Math.cos(midAngle) >= 0;
+        const rawY = cy + Math.sin(midAngle) * 45;
+        const percent = Math.round(fraction * 100);
+        const catName = (cat.category || "").length > 12 ? (cat.category || "").slice(0, 11) + "…" : (cat.category || "");
+
+        const item = { name: catName, percent, rawY, midAngle };
+        if (isRight) {
+          rightLabels.push(item);
+        } else {
+          leftLabels.push(item);
+        }
+
+        startAngle = endAngle;
+      });
+
+      // Spread labels vertically so they don't overlap (min 16px apart)
+      function layoutLabels(list, isRight) {
+        list.sort((a, b) => a.rawY - b.rawY);
+        let lastY = -999;
+        let out = "";
+        const labelX = isRight ? cx + r + 18 : cx - r - 18;
+        const anchor = isRight ? "start" : "end";
+
+        list.forEach(item => {
+          let y = Math.max(item.rawY, lastY + 16);
+          if (y > 155) y = 155;
+          if (y < 25) y = 25;
+          lastY = y;
+          out += `<text x="${labelX}" y="${y.toFixed(1)}" font-size="10" font-weight="600" fill="#374151" text-anchor="${anchor}">${item.name} ${item.percent}%</text>`;
+        });
+        return out;
+      }
+
+      const labels = layoutLabels(leftLabels, false) + layoutLabels(rightLabels, true);
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 320 170">
+          ${paths}
+          ${labels}
+        </svg>`;
+    }
+
+    // Panel 3: Horizontal Bars for Top Hosts
+    function renderTopHosts(hosts) {
+      const container = document.getElementById("panel-top-hosts");
+      if (!hosts || hosts.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+            </svg>
+            <div>No host telemetry recorded</div>
+          </div>`;
+        return;
+      }
+
+      const svgWidth = 320;
+      const topN = hosts.slice(0, 7);
+      const rowHeight = 22;
+      const svgHeight = Math.max(160, topN.length * rowHeight + 20);
+      const maxCount = Math.max(...topN.map(h => (h.count || 0)), 1);
+
+      const labelWidth = 80;
+      const maxBarWidth = svgWidth - labelWidth - 40;
+
+      let rows = "";
+      topN.forEach((h, i) => {
+        const y = 14 + i * rowHeight;
+        const barWidth = Math.max(8, ((h.count || 0) / maxCount) * maxBarWidth);
+        const color = CHART_PALETTE[i % CHART_PALETTE.length];
+        const hostName = (h.host || "").length > 10 ? (h.host || "").slice(0, 9) + "…" : (h.host || "N/A");
+
+        rows += `
+          <g>
+            <text x="${labelWidth - 6}" y="${y + 10}" font-size="10" font-weight="500" fill="#4B5563" text-anchor="end">${hostName}</text>
+            <rect x="${labelWidth}" y="${y}" width="${barWidth.toFixed(1)}" height="13" fill="${color}" rx="3" />
+            <text x="${(labelWidth + barWidth + 6).toFixed(1)}" y="${y + 10}" font-size="9" font-weight="600" fill="#6B7280">${h.count || 0}</text>
+          </g>`;
+      });
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">
+          ${rows}
+        </svg>`;
+    }
+
+    // Panel 4: Recent Security Alerts (Newest 8)
+    function renderRecentAlerts(alerts) {
+      const container = document.getElementById("panel-recent-alerts");
+      if (!alerts || alerts.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>No recent security alerts detected</div>
+          </div>`;
+        return;
+      }
+
+      let html = `<div class="alerts-list">`;
+      alerts.slice(0, 8).forEach(a => {
+        const sev = (a.severity || "medium").toLowerCase();
+        const badgeClass = `badge-${sev}`;
+        const timeShort = (a.first_seen || "").slice(11, 19) || (a.first_seen || "N/A");
+
+        html += `
+          <div class="alert-row">
+            <div class="alert-main">
+              <span class="badge ${badgeClass}">${sev}</span>
+              <span class="alert-rule-title" title="${a.rule_name || ''}">${a.rule_name || 'Alert'}</span>
+              <span class="alert-user-host">${a.user || 'N/A'} @ ${a.host || 'N/A'}</span>
+            </div>
+            <div class="alert-meta">
+              <span>${a.src_ip || ''}</span>
+              <span>${timeShort}</span>
+            </div>
+          </div>`;
+      });
+      html += `</div>`;
+      container.innerHTML = html;
+    }
+
+    // Panel 5: Events by Log Source (Radar Chart)
+    function renderLogSourcesRadar(sources) {
+      const container = document.getElementById("panel-log-sources");
+      if (!sources || sources.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <div>No log source telemetry</div>
+          </div>`;
+        return;
+      }
+
+      const svgWidth = 320;
+      const svgHeight = 190;
+      const cx = 160;
+      const cy = 95;
+      const r = 62;
+
+      // Ensure at least 3 axes for a radar polygon
+      const items = [...sources];
+      if (items.length === 1) {
+        items.push({ source: "Linux", count: 0 });
+        items.push({ source: "Windows", count: 0 });
+      } else if (items.length === 2) {
+        items.push({ source: "Endpoint", count: 0 });
+      }
+
+      const numAxes = items.length;
+      const angleStep = (2 * Math.PI) / numAxes;
+      const maxCount = Math.max(...items.map(s => (s.count || 0)), 1);
+
+      // Draw concentric radar web rings (3 rings)
+      let rings = "";
+      [0.33, 0.66, 1.0].forEach(factor => {
+        let pts = [];
+        for (let i = 0; i < numAxes; i++) {
+          const a = -Math.PI / 2 + i * angleStep;
+          const px = cx + (r * factor) * Math.cos(a);
+          const py = cy + (r * factor) * Math.sin(a);
+          pts.push(`${px.toFixed(1)},${py.toFixed(1)}`);
+        }
+        rings += `<polygon points="${pts.join(' ')}" fill="none" stroke="#E5E7EB" stroke-width="1" />`;
+      });
+
+      // Axis lines and data points
+      let axisLines = "";
+      let labels = "";
+      let dataPoints = [];
+
+      items.forEach((item, i) => {
+        const a = -Math.PI / 2 + i * angleStep;
+        const endX = cx + r * Math.cos(a);
+        const endY = cy + r * Math.sin(a);
+        axisLines += `<line x1="${cx}" y1="${cy}" x2="${endX.toFixed(1)}" y2="${endY.toFixed(1)}" stroke="#E5E7EB" stroke-width="1" />`;
+
+        // Data point position
+        const val = item.count || 0;
+        const scaledR = Math.max(8, (val / maxCount) * r);
+        const dx = cx + scaledR * Math.cos(a);
+        const dy = cy + scaledR * Math.sin(a);
+        dataPoints.push(`${dx.toFixed(1)},${dy.toFixed(1)}`);
+
+        // Vertex label
+        const lx = cx + (r + 18) * Math.cos(a);
+        const ly = cy + (r + 14) * Math.sin(a);
+        const isRight = Math.cos(a) > 0.1;
+        const isLeft = Math.cos(a) < -0.1;
+        const anchor = isRight ? "start" : (isLeft ? "end" : "middle");
+        const sName = (item.source || "Src").length > 9 ? (item.source || "").slice(0, 8) + "…" : (item.source || "");
+
+        labels += `
+          <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="10" font-weight="600" fill="#4B5563" text-anchor="${anchor}">
+            ${sName} (${item.count || 0})
+          </text>`;
+      });
+
+      const polygonSvg = `
+        <polygon points="${dataPoints.join(' ')}" fill="rgba(232, 72, 59, 0.35)" stroke="#E8483B" stroke-width="2" />
+        ${dataPoints.map(p => {
+          const [px, py] = p.split(',');
+          return `<circle cx="${px}" cy="${py}" r="3" fill="#E8483B" />`;
+        }).join('')}`;
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">
+          ${rings}
+          ${axisLines}
+          ${polygonSvg}
+          ${labels}
+        </svg>`;
+    }
+
+    // Initialize and Auto-refresh every 30 seconds
+    document.addEventListener("DOMContentLoaded", () => {
+      fetchDashboardData();
+      setInterval(fetchDashboardData, 30000);
+      document.getElementById("manual-refresh-btn").addEventListener("click", fetchDashboardData);
+    });
+  </script>
+</body>
+</html>

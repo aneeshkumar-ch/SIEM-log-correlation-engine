@@ -74,9 +74,13 @@ def verify_saved_objects_and_data() -> bool:
         ("lens", "metric-total-alerts", "Lens Metric: Total Alerts"),
         ("lens", "metric-critical-alerts", "Lens Metric: Critical Alerts"),
         ("lens", "metric-high-alerts", "Lens Metric: High Alerts"),
+        ("lens", "metric-medium-alerts", "Lens Metric: Medium Alerts"),
         ("lens", "metric-unique-source-ips", "Lens Metric: Unique Source IPs"),
         ("lens", "metric-affected-hosts", "Lens Metric: Affected Hosts"),
         ("lens", "alerts-by-severity", "Lens: Alerts by Severity Over Time"),
+        ("lens", "event-categories-pie", "Lens Pie: Event Categories"),
+        ("lens", "top-hosts-by-events", "Lens: Top Hosts by Events (Horizontal Bar)"),
+        ("lens", "events-by-source-donut", "Lens Donut: Events by Log Source"),
         ("lens", "top-source-ips", "Lens Data Table: Top Source IPs"),
         ("lens", "suspicious-execution-hosts", "Lens Data Table: Hosts with Post-Logon Suspicious Execution"),
         ("lens", "alerts-by-rule", "Lens: Alerts by Detection Rule (Horizontal Bar)"),
@@ -112,8 +116,8 @@ def verify_saved_objects_and_data() -> bool:
             all_ok = False
 
     # Ingest temporary test data to verify all panels without touching live indices
-    temp_events_idx = "security-events-temp-render"
-    temp_alerts_idx = "security-alerts-temp-render"
+    temp_events_idx = "test-render-events"
+    temp_alerts_idx = "test-render-alerts"
 
     print("\n" + "=" * 70)
     print("  PANEL DATA RETURN VERIFICATION (Using Temporary Test Indices)")

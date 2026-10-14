@@ -15,6 +15,7 @@ import normalizer
 import correlate
 import collector
 import sample_log_generator
+import dashboard_service
 from storage import get_es_client, initialize_indices, bulk_index_events, MockElasticsearch
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -281,6 +282,24 @@ async def api_alerts():
     es = get_es_client()
     state = get_pipeline_state(es)
     return JSONResponse(content={"alerts": state["alerts"]})
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def get_dashboard(request: Request, events_index: Optional[str] = None, alerts_index: Optional[str] = None):
+    return templates.TemplateResponse(
+        request=request,
+        name="analyst_dashboard.html",
+        context={}
+    )
+
+
+@app.get("/api/dashboard-data")
+async def api_dashboard_data(events_index: Optional[str] = None, alerts_index: Optional[str] = None):
+    es = get_es_client()
+    ev_idx = events_index or config.INDEX_EVENTS
+    alt_idx = alerts_index or config.INDEX_ALERTS
+    data = dashboard_service.get_dashboard_analytics(es, events_index=ev_idx, alerts_index=alt_idx)
+    return JSONResponse(content=data)
 
 
 @app.get("/investigation", response_class=HTMLResponse)
