@@ -43,7 +43,7 @@ def test_pipeline_health_endpoint():
 
 def test_redirect_routes():
     client = TestClient(app)
-    for route in ["/open/soc", "/open/alerts", "/open/timeline", "/open/discover"]:
+    for route in ["/open/soc", "/open/alerts", "/open/timeline", "/open/discover", "/open/events"]:
         resp = client.get(route, follow_redirects=False)
         assert resp.status_code in (302, 307)
         loc = resp.headers.get("location")
@@ -114,6 +114,47 @@ def test_collector_incoming_archives_file(tmp_path, monkeypatch, setup_test_env)
     # Verify original file was archived into incoming/archive
     assert not (incoming_dir / "auth.log").exists()
     assert (incoming_dir / "archive" / "auth.log").exists()
+
+
+def test_collector_incoming_rejects_unclassifiable_files(tmp_path, monkeypatch, setup_test_env, caplog):
+    import logging
+    test_es = setup_test_env
+    incoming_dir = tmp_path / "incoming"
+    incoming_dir.mkdir()
+    monkeypatch.setattr(config, "INCOMING_DIR", incoming_dir)
+
+    # Place an unclassifiable log file and a disallowed extension file
+    unclassifiable = incoming_dir / "random_dump.log"
+    unclassifiable.write_text("some random content\n", encoding="utf-8")
+    disallowed = incoming_dir / "script.sh"
+    disallowed.write_text("#!/bin/bash\necho hello\n", encoding="utf-8")
+
+    # Also place a valid file
+    valid = incoming_dir / "sshd.log"
+    valid.write_text("Oct 15 10:00:00 srv01 sshd[101]: Failed password for invalid user admin from 192.168.1.100 port 22 ssh2\n", encoding="utf-8")
+
+    with caplog.at_level(logging.WARNING):
+        results = collector.collect_incoming(incoming_dir, es=test_es)
+
+    assert len(results) == 1
+    assert results[0]["file_name"] == "sshd.log"
+
+    # Valid file moved to archive
+    assert not (incoming_dir / "sshd.log").exists()
+    assert (incoming_dir / "archive" / "sshd.log").exists()
+
+    # Rejected files moved to incoming/rejected
+    assert not (incoming_dir / "random_dump.log").exists()
+    assert not (incoming_dir / "script.sh").exists()
+    assert (incoming_dir / "rejected" / "random_dump.log").exists()
+    assert (incoming_dir / "rejected" / "script.sh").exists()
+
+    # Verify log output: counts only, no file contents
+    warning_logs = [rec.message for rec in caplog.records if rec.levelno >= logging.WARNING]
+    assert any("Collector rejected 2 unclassifiable file(s)" in m for m in warning_logs)
+    for m in warning_logs:
+        assert "some random content" not in m
+        assert "#!/bin/bash" not in m
 
 
 def test_webhook_dispatched_for_critical_alerts(monkeypatch):

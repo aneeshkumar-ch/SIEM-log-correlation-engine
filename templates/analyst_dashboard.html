@@ -960,19 +960,21 @@
     }
 
     function processAlertNotifications(recentAlerts) {
-      if (!recentAlerts || recentAlerts.length === 0) return;
-
       if (isFirstLoad) {
-        recentAlerts.forEach(a => {
-          const aId = a.id || `${a.rule_name}_${a.first_seen}_${a.src_ip}`;
-          knownAlertIds.add(aId);
-          if ((a.severity || "").toLowerCase() === "critical" && !isCriticalBannerDismissed) {
-            showCriticalBanner(a);
-          }
-        });
+        if (recentAlerts && recentAlerts.length > 0) {
+          recentAlerts.forEach(a => {
+            const aId = a.id || `${a.rule_name}_${a.first_seen}_${a.src_ip}`;
+            knownAlertIds.add(aId);
+            if ((a.severity || "").toLowerCase() === "critical" && !isCriticalBannerDismissed) {
+              showCriticalBanner(a);
+            }
+          });
+        }
         isFirstLoad = false;
         return;
       }
+
+      if (!recentAlerts || recentAlerts.length === 0) return;
 
       let hasNewAlerts = false;
       recentAlerts.forEach(a => {

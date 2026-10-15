@@ -363,6 +363,7 @@ async def open_timeline_dashboard():
 
 
 @app.get("/open/discover")
+@app.get("/open/events")
 async def open_discover_search():
     """Redirects to Kibana Discover Events search with forced 2s auto-refresh global state."""
     return RedirectResponse(f"{config.KIBANA_HOST}/app/discover#/view/events-search?{KIBANA_REFRESH_G}")

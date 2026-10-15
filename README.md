@@ -209,6 +209,18 @@ Both indices use explicit, strictly typed mappings in Elasticsearch 8.13:
   Oct 13 10:10:30 fw01 kernel: [UFW ALLOW] IN=eth0 OUT= SRC=192.168.1.50 DST=10.0.0.1 PROTO=TCP SPT=4001 DPT=443
   ```
 
+### 4. Watched Directory (`./incoming`) Ingestion & Classification Rules
+The collector polls `./incoming` every `COLLECTOR_POLL_SECONDS` (default: 2s) and classifies incoming telemetry:
+- **Filename Keyword Mapping (Case-Insensitive):**
+  - Contains `win`, `sysmon`, or `security` $\rightarrow$ `windows_sysmon`
+  - Contains `auth` or `sshd` $\rightarrow$ `linux_auth`
+  - Contains `linux`, `audit`, or `sudo` $\rightarrow$ `linux_auditd`
+  - Contains `firewall`, `fw`, `net`, `ufw`, or `iptables` $\rightarrow$ `network_firewall`
+- **Extension Filtering:** Only extensions defined in `config.ALLOWED_EXTENSIONS` (`.json`, `.csv`, `.log`, `.txt`) are accepted.
+- **Archival Policy:** Successfully parsed and indexed telemetry files are safely moved to `./incoming/archive/` to prevent duplicate indexing across poll cycles.
+- **Rejection Policy:** Files that cannot be classified (no matching keyword pattern) or have disallowed file extensions are **not silently skipped**; they are immediately moved to `./incoming/rejected/` and logged with count-only warnings (`logger.warning("Collector rejected %d unclassifiable file(s)", count)`), ensuring zero sensitive log payload disclosure in operational logs.
+- **Git Tracking:** Both `./incoming/archive/` and `./incoming/rejected/` are excluded via `.gitignore` (`incoming/*`).
+
 ---
 
 ## 7. Setup and Quickstart
