@@ -23,21 +23,15 @@
             --accent-bar-header: #1E1B5E;    /* navy */
             --accent-bar-nav: #059669;       /* green */
             --accent-bar-scenarios: #2563EB; /* blue */
-            --accent-bar-playbook: #7C3AED;  /* purple */
-            --accent-bar-findings: #0F766E;  /* teal */
+            --accent-bar-playbook: #D97706;  /* orange */
+            --accent-bar-findings: #059669;  /* green */
 
-            /* Action Colors */
-            --accent: #0F766E;
-            --accent-hover: #115E59;
-            --accent-light: #F0FDFA;
-            --accent-border: #CCFBF1;
-
-            /* Header Buttons */
-            --btn-main-bg: #0F766E;
+            /* Action & Button Colors */
+            --btn-main-bg: #0F766E;          /* filled teal */
             --btn-main-text: #FFFFFF;
-            --btn-kibana-border: #0F766E;
-            --btn-kibana-text: #0F766E;
-            --btn-discover-border: #B91C1C;
+            --btn-soc-border: #0F766E;       /* teal border */
+            --btn-soc-text: #0F766E;
+            --btn-discover-border: #B91C1C;  /* red border */
             --btn-discover-text: #B91C1C;
 
             /* Severity Colors */
@@ -102,19 +96,13 @@
             margin-bottom: 3px;
         }
 
-        .subtitle {
-            font-size: 0.825rem;
-            color: var(--text-label);
-            font-weight: 500;
-        }
-
         .nav-links {
             display: flex;
             gap: 10px;
             align-items: center;
         }
 
-        /* Buttons */
+        /* Buttons Base */
         .btn {
             display: inline-flex;
             align-items: center;
@@ -137,17 +125,17 @@
             border-color: var(--btn-main-bg);
         }
         .nav-links a[href="/"]:hover {
-            background-color: var(--accent-hover);
-            border-color: var(--accent-hover);
+            background-color: #115E59;
+            border-color: #115E59;
         }
 
         .nav-links a.btn-kibana {
             background-color: #FFFFFF;
-            color: var(--btn-kibana-text);
-            border-color: var(--btn-kibana-border);
+            color: var(--btn-soc-text);
+            border-color: var(--btn-soc-border);
         }
         .nav-links a.btn-kibana:hover {
-            background-color: var(--accent-light);
+            background-color: #F0FDFA;
         }
 
         .nav-links a[href*="discover"] {
@@ -183,11 +171,20 @@
             border-bottom-left-radius: var(--card-radius);
         }
 
-        /* Card accent color assignment */
-        .card-nav, .container > .card:first-of-type { --card-accent: var(--accent-bar-nav); }
-        .card-scenarios, .grid-2 > div:first-child > .card:first-child { --card-accent: var(--accent-bar-scenarios); }
-        .card-playbook, .grid-2 > div:first-child > .card:last-child { --card-accent: var(--accent-bar-playbook); }
-        .card-findings, .grid-2 > div:last-child > .card { --card-accent: var(--accent-bar-findings); }
+        /* Card Accent Colors */
+        .container > .card:first-of-type {
+            --card-accent: var(--accent-bar-nav);
+            padding: 16px 24px 16px 28px !important;
+        }
+        .grid-2 > div:first-child > .card:first-child {
+            --card-accent: var(--accent-bar-scenarios);
+        }
+        .grid-2 > div:first-child > .card:last-child {
+            --card-accent: var(--accent-bar-playbook);
+        }
+        .grid-2 > div:last-child > .card {
+            --card-accent: var(--accent-bar-findings);
+        }
 
         .card-title {
             font-size: 1.05rem;
@@ -197,34 +194,40 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 18px;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 12px;
         }
 
         /* Direct Kibana Navigation Bar */
         .container > .card:first-of-type a.btn-secondary {
-            background-color: #FFFFFF;
-            color: var(--text-body);
-            border: 1px solid #CBD5E1;
-            font-size: 0.8rem;
-            padding: 5px 12px;
-            border-radius: 8px;
-            font-weight: 600;
+            background-color: #FFFFFF !important;
+            color: var(--text-body) !important;
+            border: 1px solid #CBD5E1 !important;
+            border-radius: 9999px !important;
+            font-size: 0.75rem !important;
+            padding: 4px 12px !important;
+            font-weight: 600 !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            transition: all 0.15s ease-in-out !important;
         }
 
         .container > .card:first-of-type a.btn-secondary:hover {
-            background-color: #F1F5F9;
-            border-color: #94A3B8;
-            color: var(--text-heading);
+            background-color: #F1F5F9 !important;
+            border-color: #94A3B8 !important;
+            color: var(--text-heading) !important;
             transform: translateY(-1px);
         }
 
         .container > .card:first-of-type span {
+            font-size: 0.75rem !important;
             color: var(--text-label) !important;
             font-weight: 700 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
         }
 
-        /* Badges */
+        /* Badges / Pills Base */
         .badge {
             display: inline-flex;
             align-items: center;
@@ -238,52 +241,84 @@
         }
 
         /* Card Header Badges */
+        /* 5 BRIEFS: Light purple pill like STAGE 1 REFERENCE */
         .grid-2 > div:first-child > .card:first-child .card-title .badge {
-            background-color: #EDE9FE;
-            color: #6D28D9;
-            border: 1px solid #DDD6FE;
+            background-color: #EDE9FE !important;
+            color: #6D28D9 !important;
+            border: 1px solid #DDD6FE !important;
+            border-radius: 9999px !important;
+            padding: 3px 10px !important;
+            font-size: 0.725rem !important;
+            font-weight: 700 !important;
         }
 
+        /* SOC PLAYBOOK: Solid orange pill with white text */
         .grid-2 > div:first-child > .card:last-child .card-title .badge {
-            background-color: #D97706;
-            color: #FFFFFF;
-            border: none;
+            background-color: #D97706 !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 9999px !important;
+            padding: 3px 10px !important;
+            font-size: 0.725rem !important;
+            font-weight: 700 !important;
         }
 
+        /* SAVE & EXPORT: Solid green pill */
         .grid-2 > div:last-child > .card .card-title .badge {
-            background-color: #0F766E;
-            color: #FFFFFF;
-            border: none;
+            background-color: #059669 !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 9999px !important;
+            padding: 3px 10px !important;
+            font-size: 0.725rem !important;
+            font-weight: 700 !important;
         }
 
-        /* Inline MITRE & Severity Badges */
-        .badge-mitre {
-            background-color: #F1F5F9;
-            color: #334155;
-            border: 1px solid #CBD5E1;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 0.72rem;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-weight: 700;
-        }
-
+        /* Severity Badges (Pills) */
         .badge-crit {
-            background-color: #FEF2F2;
-            color: var(--critical);
-            border: 1px solid #FECDD3;
+            background-color: #FEF2F2 !important;
+            color: #DC2626 !important;
+            border: 1px solid #FECDD3 !important;
+            border-radius: 9999px !important;
+            padding: 3px 10px !important;
+            font-size: 0.725rem !important;
+            font-weight: 700 !important;
         }
 
         .badge-high {
-            background-color: #FFF7ED;
-            color: var(--high);
-            border: 1px solid #FFEDD5;
+            background-color: #FFF7ED !important;
+            color: #EA580C !important;
+            border: 1px solid #FFEDD5 !important;
+            border-radius: 9999px !important;
+            padding: 3px 10px !important;
+            font-size: 0.725rem !important;
+            font-weight: 700 !important;
         }
 
+        /* High / Med: Light amber with amber text */
+        .scenario-box:nth-of-type(4) .badge-high,
+        div[onclick*="scenario_4"] .badge-high,
         .badge-med {
-            background-color: #FEFCE8;
-            color: #92400E;
-            border: 1px solid #FEF08A;
+            background-color: #FEFCE8 !important;
+            color: #B45309 !important;
+            border: 1px solid #FEF08A !important;
+            border-radius: 9999px !important;
+            padding: 3px 10px !important;
+            font-size: 0.725rem !important;
+            font-weight: 700 !important;
+        }
+
+        /* MITRE Codes Monospace Chips */
+        .scenario-meta .badge-mitre {
+            background-color: #F1F0F8 !important;
+            color: #475569 !important;
+            border: 1px solid #E2E0EC !important;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            font-size: 0.72rem !important;
+            padding: 2px 7px !important;
+            border-radius: 6px !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.2px !important;
         }
 
         /* Layout Grid */
@@ -294,8 +329,12 @@
         }
 
         @media (min-width: 1024px) {
-            .grid-2 {
-                grid-template-columns: 460px 1fr;
+            .container > .grid-2 {
+                grid-template-columns: 480px 1fr;
+            }
+            form .grid-2 {
+                grid-template-columns: 1fr 1fr;
+                gap: 16px;
             }
         }
 
@@ -318,7 +357,7 @@
         }
 
         .scenario-box.selected {
-            background-color: #F8FAFC;
+            background-color: #EFF6FF;
             border: 2px solid #2563EB;
             box-shadow: 0 0 0 1px #2563EB, 0 4px 6px -1px rgba(37, 99, 235, 0.12);
         }
@@ -345,11 +384,16 @@
 
         .scenario-meta {
             font-size: 0.78rem;
-            color: var(--text-label);
+            color: var(--text-muted);
             display: flex;
             gap: 12px;
             align-items: center;
             font-weight: 500;
+        }
+
+        .scenario-meta > span:last-child {
+            color: var(--text-muted);
+            font-size: 0.78rem;
         }
 
         /* 8-Step Workflow Checklist */
@@ -376,30 +420,33 @@
             width: 18px;
             height: 18px;
             cursor: pointer;
-            accent-color: var(--accent);
+            accent-color: #059669;
             border-radius: 4px;
         }
 
-        .checklist-item.completed {
+        .checklist-item.completed,
+        .checklist-item:has(input:checked) {
             background-color: #F0FDF4;
             border-color: #86EFAC;
         }
 
-        .checklist-item.completed .checklist-title {
+        .checklist-item.completed .checklist-title,
+        .checklist-item:has(input:checked) .checklist-title {
             color: #15803D;
+        }
+
+        .checklist-item.completed .checklist-step-num,
+        .checklist-item:has(input:checked) .checklist-step-num {
+            color: #166534;
         }
 
         .checklist-step-num {
             font-weight: 700;
-            color: var(--accent);
+            color: #D97706;
             min-width: 55px;
             font-size: 0.825rem;
             text-transform: uppercase;
             letter-spacing: 0.4px;
-        }
-
-        .checklist-item.completed .checklist-step-num {
-            color: #166534;
         }
 
         .checklist-content {
@@ -410,31 +457,31 @@
             font-weight: 700;
             color: var(--text-heading);
             font-size: 0.9rem;
+            margin-bottom: 2px;
         }
 
         .checklist-desc {
             font-size: 0.8rem;
-            color: var(--text-label);
-            margin-top: 2px;
+            color: var(--text-muted);
             line-height: 1.4;
         }
 
         /* Findings Form */
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
         label {
             display: block;
             font-size: 0.8rem;
             font-weight: 700;
-            color: var(--text-label);
+            color: #64748B;
             text-transform: uppercase;
             letter-spacing: 0.4px;
             margin-bottom: 6px;
         }
 
-        input[type="text"], select, textarea {
+        input[type="text"], select {
             width: 100%;
             padding: 9px 12px;
             background-color: #FFFFFF;
@@ -442,6 +489,22 @@
             border-radius: 8px;
             color: var(--text-body);
             font-size: 0.875rem;
+            line-height: 1.5;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 8px;
+            color: var(--text-body);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            resize: vertical;
+            min-height: 90px;
+            font-family: inherit;
             transition: border-color 0.15s, box-shadow 0.15s;
         }
 
@@ -449,43 +512,65 @@
             color: var(--text-muted);
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 80px;
-            font-family: inherit;
-        }
-
         input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #2563EB;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
         }
 
         /* Form Action Buttons */
+        form button[type="submit"].btn-primary,
         form .btn-primary {
-            background-color: var(--accent);
-            color: #FFFFFF;
-            border-color: var(--accent);
-            font-weight: 700;
-            padding: 10px 18px;
+            background-color: #2563EB !important;
+            color: #FFFFFF !important;
+            border: 1px solid #2563EB !important;
+            border-radius: 8px !important;
+            font-size: 0.875rem !important;
+            font-weight: 700 !important;
+            padding: 10px 20px !important;
+            cursor: pointer !important;
+            transition: all 0.15s ease-in-out !important;
         }
+
+        form button[type="submit"].btn-primary:hover,
         form .btn-primary:hover {
-            background-color: var(--accent-hover);
-            border-color: var(--accent-hover);
+            background-color: #1D4ED8 !important;
+            border-color: #1D4ED8 !important;
+        }
+
+        form button[type="submit"].btn-primary:focus,
+        form .btn-primary:focus {
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25) !important;
         }
 
         form a#exportBtn {
-            background-color: #FFFFFF;
-            color: var(--text-heading);
-            border-color: #CBD5E1;
-            font-weight: 700;
-            padding: 10px 18px;
-        }
-        form a#exportBtn:hover {
-            background-color: #F8FAFC;
-            border-color: #94A3B8;
+            background-color: #FFFFFF !important;
+            color: #1E1B5E !important;
+            border: 1px solid #1E1B5E !important;
+            border-radius: 8px !important;
+            font-size: 0.875rem !important;
+            font-weight: 700 !important;
+            padding: 10px 20px !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.15s ease-in-out !important;
         }
 
+        form a#exportBtn:hover {
+            background-color: #F8FAFC !important;
+            border-color: #2D2A7A !important;
+            color: #2D2A7A !important;
+        }
+
+        form a#exportBtn:focus {
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(30, 27, 94, 0.2) !important;
+        }
+
+        /* Alert / Flash Messages */
         .alert-box {
             padding: 14px 18px;
             border-radius: 8px;
