@@ -6,19 +6,84 @@
     <title>BCSSL Lab 07 - SIEM Log Correlation Engine</title>
     <style>
         :root {
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --card-border: #e2e8f0;
+            /* Page & Base Colors */
+            --bg-page: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --card-border: #E2E8F0;
+            --card-radius: 12px;
             --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --text-subtle: #94a3b8;
-            --accent: #0F766E;
-            --accent-hover: #115E59;
-            --accent-light: #F0FDFA;
-            --accent-border: #CCFBF1;
-            --danger: #dc2626;
-            --danger-hover: #b91c1c;
+
+            /* Typography */
+            --text-heading: #1E1B4B; /* dark indigo */
+            --text-body: #475569;
+            --text-label: #64748B;
+            --text-muted: #94A3B8;
+
+            /* Card Accent Bars (6px on left edge, rounded) */
+            --accent-bar-header: #1E1B5E;    /* navy */
+            --accent-bar-ingest: #2563EB;    /* blue */
+            --accent-bar-pipeline: #059669;  /* green */
+            --accent-bar-examples: #7C3AED;  /* purple */
+            --accent-bar-soc: #D97706;       /* orange */
+            --accent-bar-alerts: #DC2626;    /* red */
+
+            /* Header Buttons */
+            --btn-lab-bg: #0F766E;           /* filled teal */
+            --btn-lab-text: #FFFFFF;
+            --btn-soc-border: #0F766E;       /* teal border */
+            --btn-soc-text: #0F766E;
+            --btn-discover-border: #B91C1C;  /* red border */
+            --btn-discover-text: #B91C1C;
+
+            /* Badges (Pills) */
+            --badge-passive-bg: #DBEAFE;     /* light blue */
+            --badge-passive-text: #1D4ED8;   /* blue */
+            --badge-connected-bg: #DCFCE7;   /* light green */
+            --badge-connected-border: #86EFAC;
+            --badge-connected-text: #15803D; /* green */
+            --badge-reference-bg: #EDE9FE;   /* light purple */
+            --badge-reference-text: #6D28D9; /* purple */
+            --badge-visualizations-bg: #D97706; /* solid orange */
+            --badge-visualizations-text: #FFFFFF;
+            --badge-alerts-total-bg: #DC2626;   /* solid red */
+            --badge-alerts-total-text: #FFFFFF;
+
+            /* Stat Tiles */
+            --stat-events-bg: #E0F0FF;       /* light blue */
+            --stat-events-num: #1D6FD1;      /* large blue number */
+            --stat-alerts-bg: #FBD5CB;       /* light salmon */
+            --stat-alerts-num: #D93A1F;      /* large red number */
+
+            /* Action Buttons */
+            --btn-upload-bg: #2563EB;        /* solid blue */
+            --btn-upload-text: #FFFFFF;
+            --btn-rules-bg: #1E1B5E;         /* dark navy */
+            --btn-rules-text: #FFFFFF;
+            --btn-samples-bg: #CFEBDD;       /* mint */
+            --btn-samples-text: #065F46;     /* dark green */
+            --btn-clear-bg: #FDE2E2;         /* soft pink */
+            --btn-clear-border: #FCA5A5;
+            --btn-clear-text: #B91C1C;       /* red */
+
+            /* File Input */
+            --file-input-bg: #EFF6FF;        /* light blue background */
+            --file-input-border: #BFDBFE;
+            --file-input-focus: #2563EB;
+
+            /* Example Raw Logs Dark Panels */
+            --code-panel-bg: #111936;        /* dark code panel */
+            --code-panel-text: #E2E8F0;
+            --code-win-title: #60A5FA;       /* blue */
+            --code-linux-title: #FB923C;     /* orange */
+            --code-fw-title: #A78BFA;        /* purple */
+            --code-token-hl: #D9F99D;        /* yellow-green */
+
+            /* SOC Triage Overview Sub-panels */
+            --subpanel-severity-bar: #DC2626;
+            --subpanel-ips-bar: #F59E0B;
+            --subpanel-hosts-bar: #7C3AED;
+
+            /* Severity Colors */
             --critical: #8E0000;
             --high: #E7664C;
             --medium: #FEC514;
@@ -29,12 +94,12 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            background-color: var(--bg-page);
+            color: var(--text-body);
             padding: 24px 32px;
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
@@ -45,29 +110,45 @@
             margin: 0 auto;
         }
 
+        /* Header Card with Navy Accent Bar */
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 12px;
+            border-radius: var(--card-radius);
             box-shadow: var(--card-shadow);
-            padding: 18px 24px;
+            padding: 20px 24px 20px 28px;
             margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background-color: var(--accent-bar-header);
+            border-top-left-radius: var(--card-radius);
+            border-bottom-left-radius: var(--card-radius);
         }
 
         h1 {
             font-size: 1.35rem;
             font-weight: 700;
-            color: var(--text-main);
+            color: var(--text-heading);
             letter-spacing: -0.3px;
             margin-bottom: 3px;
         }
 
         .subtitle {
             font-size: 0.825rem;
-            color: var(--text-muted);
+            color: var(--text-label);
+            font-weight: 500;
         }
 
         .top-links {
@@ -76,14 +157,16 @@
             align-items: center;
         }
 
+        /* Buttons */
         .btn {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             padding: 8px 16px;
             border-radius: 8px;
             font-size: 0.825rem;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             border: 1px solid transparent;
             text-decoration: none;
@@ -91,44 +174,74 @@
         }
 
         .btn-primary {
-            background-color: var(--accent);
-            color: #ffffff;
-            border-color: var(--accent);
-            font-weight: 600;
+            background-color: var(--btn-lab-bg);
+            color: var(--btn-lab-text);
+            border-color: var(--btn-lab-bg);
         }
         .btn-primary:hover {
-            background-color: var(--accent-hover);
-            border-color: var(--accent-hover);
+            background-color: #115E59;
+            border-color: #115E59;
         }
 
         .btn-kibana {
-            background-color: #ffffff;
-            color: var(--accent);
-            border-color: var(--accent);
+            background-color: #FFFFFF;
+            color: var(--btn-soc-text);
+            border-color: var(--btn-soc-border);
         }
         .btn-kibana:hover {
-            background-color: var(--accent-light);
+            background-color: #F0FDFA;
         }
 
         .btn-secondary {
-            background-color: #ffffff;
-            color: #334155;
-            border-color: #cbd5e1;
+            background-color: #FFFFFF;
+            color: var(--btn-discover-text);
+            border-color: var(--btn-discover-border);
         }
         .btn-secondary:hover {
-            background-color: #f8fafc;
-            border-color: #94a3b8;
-            color: var(--text-main);
+            background-color: #FEF2F2;
         }
 
-        .btn-danger {
-            background-color: #ffffff;
-            color: var(--danger);
-            border-color: #fca5a5;
+        .btn-upload {
+            background-color: var(--btn-upload-bg);
+            color: var(--btn-upload-text);
+            border: none;
+            width: 100%;
+            padding: 10px 16px;
+            font-size: 0.875rem;
         }
-        .btn-danger:hover {
-            background-color: #fef2f2;
-            border-color: var(--danger);
+        .btn-upload:hover {
+            background-color: #1D4ED8;
+        }
+
+        .btn-rules {
+            background-color: var(--btn-rules-bg);
+            color: var(--btn-rules-text);
+            border: 1px solid var(--btn-rules-bg);
+            width: 100%;
+        }
+        .btn-rules:hover {
+            background-color: #2D2A7A;
+            border-color: #2D2A7A;
+        }
+
+        .btn-samples {
+            background-color: var(--btn-samples-bg);
+            color: var(--btn-samples-text);
+            border: 1px solid #A7F3D0;
+            width: 100%;
+        }
+        .btn-samples:hover {
+            background-color: #BCE2CF;
+        }
+
+        .btn-clear {
+            background-color: var(--btn-clear-bg);
+            color: var(--btn-clear-text);
+            border: 1px solid var(--btn-clear-border);
+            width: 100%;
+        }
+        .btn-clear:hover {
+            background-color: #FCD1D1;
         }
 
         .grid {
@@ -144,20 +257,42 @@
             }
         }
 
+        /* Base Card Styling with Left Accent Bar */
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 12px;
+            border-radius: var(--card-radius);
             box-shadow: var(--card-shadow);
-            padding: 24px;
+            padding: 24px 26px 24px 30px;
             margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
         }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background-color: var(--card-accent, #1E1B5E);
+            border-top-left-radius: var(--card-radius);
+            border-bottom-left-radius: var(--card-radius);
+        }
+
+        .card-ingest { --card-accent: var(--accent-bar-ingest); }
+        .card-pipeline { --card-accent: var(--accent-bar-pipeline); }
+        .card-examples { --card-accent: var(--accent-bar-examples); }
+        .card-soc { --card-accent: var(--accent-bar-soc); }
+        .card-alerts { --card-accent: var(--accent-bar-alerts); }
+        .card-summary { --card-accent: var(--accent-bar-pipeline); }
 
         .card-title {
             font-size: 1.05rem;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 18px;
-            color: var(--text-main);
+            color: var(--text-heading);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -170,71 +305,136 @@
         label {
             display: block;
             font-size: 0.825rem;
-            color: var(--text-muted);
+            color: var(--text-label);
             margin-bottom: 6px;
             font-weight: 600;
         }
 
-        input[type="file"], select {
+        select {
             width: 100%;
             padding: 9px 12px;
-            background-color: #ffffff;
-            border: 1px solid #cbd5e1;
+            background-color: #FFFFFF;
+            border: 1px solid #CBD5E1;
             border-radius: 8px;
-            color: var(--text-main);
+            color: var(--text-body);
             font-size: 0.875rem;
             transition: border-color 0.15s, box-shadow 0.15s;
         }
 
-        input[type="file"] {
-            background-color: #f8fafc;
-        }
-
-        select:focus, input[type="file"]:focus {
+        select:focus {
             outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
         }
 
+        /* Rounded File Input with Light Blue Background */
+        input[type="file"] {
+            width: 100%;
+            padding: 10px 14px;
+            background-color: var(--file-input-bg);
+            border: 1px solid var(--file-input-border);
+            border-radius: 8px;
+            color: var(--text-body);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input[type="file"]:focus {
+            outline: none;
+            border-color: var(--file-input-focus);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        /* Stat Tiles */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 12px;
-            margin-bottom: 16px;
+            gap: 14px;
+            margin-bottom: 18px;
         }
 
         .stat-box {
-            background-color: #f8fafc;
-            border: 1px solid var(--card-border);
             border-radius: 8px;
             padding: 14px 12px;
             text-align: center;
+            border: 1px solid transparent;
+        }
+
+        .stat-events {
+            background-color: var(--stat-events-bg);
+            border-color: #BAE6FD;
+        }
+
+        .stat-alerts {
+            background-color: var(--stat-alerts-bg);
+            border-color: #FECDD3;
         }
 
         .stat-value {
-            font-size: 1.5rem;
+            font-size: 1.85rem;
             font-weight: 700;
-            color: var(--text-main);
+            line-height: 1.1;
+            margin-bottom: 4px;
+        }
+
+        .stat-events .stat-value {
+            color: var(--stat-events-num);
+        }
+
+        .stat-alerts .stat-value {
+            color: var(--stat-alerts-num);
         }
 
         .stat-label {
             font-size: 0.725rem;
-            color: var(--text-muted);
+            color: var(--text-label);
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            font-weight: 600;
+            font-weight: 700;
         }
 
+        /* Badges */
         .badge {
             display: inline-flex;
             align-items: center;
             padding: 3px 10px;
             border-radius: 9999px;
             font-size: 0.725rem;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.3px;
             line-height: 1.3;
+        }
+
+        .badge-passive {
+            background-color: var(--badge-passive-bg);
+            color: var(--badge-passive-text);
+            border: 1px solid #BFDBFE;
+        }
+
+        .badge-connected {
+            background-color: var(--badge-connected-bg);
+            color: var(--badge-connected-text);
+            border: 1px solid var(--badge-connected-border);
+        }
+
+        .badge-reference {
+            background-color: var(--badge-reference-bg);
+            color: var(--badge-reference-text);
+            border: 1px solid #DDD6FE;
+        }
+
+        .badge-visualizations {
+            background-color: var(--badge-visualizations-bg);
+            color: var(--badge-visualizations-text);
+            border: none;
+        }
+
+        .badge-alerts-total {
+            background-color: var(--badge-alerts-total-bg);
+            color: var(--badge-alerts-total-text);
+            border: none;
         }
 
         .badge-critical {
@@ -263,16 +463,155 @@
 
         .badge-success {
             background-color: #F0FDF4;
-            color: var(--accent);
+            color: #15803D;
             border: 1px solid #A7F3D0;
         }
 
         .badge-info {
-            background-color: var(--accent-light);
-            color: var(--accent);
-            border: 1px solid var(--accent-border);
+            background-color: var(--badge-passive-bg);
+            color: var(--badge-passive-text);
+            border: 1px solid #BFDBFE;
         }
 
+        /* Example Raw Logs Dark Panels */
+        .code-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 14px;
+        }
+
+        .code-panel {
+            background-color: var(--code-panel-bg);
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #1E293B;
+        }
+
+        .code-title {
+            font-weight: 700;
+            font-size: 0.825rem;
+            margin-bottom: 8px;
+            letter-spacing: 0.2px;
+        }
+
+        .code-title-win { color: var(--code-win-title); }
+        .code-title-linux { color: var(--code-linux-title); }
+        .code-title-fw { color: var(--code-fw-title); }
+
+        .code-pre {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.75rem;
+            color: var(--code-panel-text);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.55;
+        }
+
+        .tok-hl {
+            color: var(--code-token-hl);
+            font-weight: 600;
+        }
+
+        /* SOC Triage Overview Sub-panels */
+        .soc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+
+        .soc-subpanel {
+            background-color: #FFFFFF;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .soc-subpanel-severity { border-left: 4px solid var(--subpanel-severity-bar); }
+        .soc-subpanel-ips { border-left: 4px solid var(--subpanel-ips-bar); }
+        .soc-subpanel-hosts { border-left: 4px solid var(--subpanel-hosts-bar); }
+
+        .soc-subpanel-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-label);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.4px;
+        }
+
+        .sev-tiles-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .sev-tile {
+            flex: 1;
+            padding: 12px 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .sev-tile-crit {
+            background-color: #FEF2F2;
+            border: 1px solid #FECDD3;
+        }
+
+        .sev-tile-high {
+            background-color: #FFF7ED;
+            border: 1px solid #FFEDD5;
+        }
+
+        .sev-tile-val {
+            font-size: 1.4rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .sev-tile-crit .sev-tile-val { color: var(--critical); }
+        .sev-tile-high .sev-tile-val { color: var(--high); }
+
+        .sev-tile-lbl {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .sev-tile-crit .sev-tile-lbl { color: var(--critical); }
+        .sev-tile-high .sev-tile-lbl { color: var(--high); }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .dot-critical { background-color: var(--critical); }
+        .dot-high { background-color: var(--high); }
+
+        .soc-subpanel-footer {
+            font-size: 0.75rem;
+            color: var(--text-label);
+        }
+
+        .soc-subpanel-empty {
+            color: var(--text-label);
+            font-size: 0.825rem;
+            padding: 8px 0;
+        }
+
+        /* Tables */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -283,13 +622,13 @@
         th, td {
             padding: 11px 14px;
             text-align: left;
-            border-bottom: 1px solid #f1f5f9;
+            border-bottom: 1px solid #F1F5F9;
         }
 
         th {
-            background-color: #f8fafc;
+            background-color: #F1F5F9;
             color: #475569;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             font-size: 0.725rem;
             letter-spacing: 0.4px;
@@ -297,7 +636,22 @@
         }
 
         tr:hover {
-            background-color: #f8fafc;
+            background-color: #F8FAFC;
+        }
+
+        .code-snippet {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            background: #F1F5F9;
+            border: 1px solid #E2E8F0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #334155;
+        }
+
+        .ip-cell {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.85rem;
         }
 
         .alert-box {
@@ -309,38 +663,32 @@
         }
 
         .alert-success {
-            background-color: #f0fdf4;
-            border: 1px solid #bbf7d0;
+            background-color: #F0FDF4;
+            border: 1px solid #BBF7D0;
             color: #166534;
         }
 
         .alert-error {
-            background-color: #fef2f2;
-            border: 1px solid #fecdd3;
-            color: #991b1b;
+            background-color: #FEF2F2;
+            border: 1px solid #FECDD3;
+            color: #991B1B;
         }
 
         .alert-info {
-            background-color: #f0fdfa;
-            border: 1px solid #ccfbf1;
-            color: #115e59;
-        }
-
-        .code-snippet {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            background: #f1f5f9;
-            border: 1px solid #e2e8f0;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            color: #334155;
+            background-color: #F0FDFA;
+            border: 1px solid #CCFBF1;
+            color: #115E59;
         }
 
         .empty-state {
             text-align: center;
             padding: 36px 20px;
-            color: var(--text-muted);
+            color: var(--text-label);
             font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
     </style>
 </head>
@@ -372,10 +720,10 @@
 
         <div class="grid grid-2">
             <!-- Upload Panel -->
-            <div class="card">
+            <div class="card card-ingest">
                 <div class="card-title">
                     <span>Ingest Log File</span>
-                    <span class="badge badge-info">Passive Ingestion</span>
+                    <span class="badge badge-passive">Passive Ingestion</span>
                 </div>
                 <form action="/upload" method="post" enctype="multipart/form-data">
                     <div class="form-group">
@@ -396,7 +744,7 @@
                     </div>
 
                     <div style="display: flex; gap: 10px; margin-top: 18px;">
-                        <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        <button type="submit" class="btn btn-upload">
                             Upload &amp; Correlate
                         </button>
                     </div>
@@ -404,40 +752,40 @@
             </div>
 
             <!-- Pipeline Status & Actions -->
-            <div class="card">
+            <div class="card card-pipeline">
                 <div class="card-title">
                     <span>Pipeline Control</span>
-                    <span class="badge {% if es_connected %}badge-success{% else %}badge-critical{% endif %}">
+                    <span class="badge {% if es_connected %}badge-connected{% else %}badge-critical{% endif %}">
                         {{ es_mode }}
                     </span>
                 </div>
 
                 <div class="stats-grid">
-                    <div class="stat-box">
+                    <div class="stat-box stat-events">
                         <div class="stat-value">{{ events_count }}</div>
                         <div class="stat-label">Events Indexed</div>
                     </div>
-                    <div class="stat-box">
-                        <div class="stat-value" style="color: var(--high);">{{ alerts_count }}</div>
+                    <div class="stat-box stat-alerts">
+                        <div class="stat-value">{{ alerts_count }}</div>
                         <div class="stat-label">Alerts Raised</div>
                     </div>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
                     <form action="/correlate" method="post">
-                        <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                        <button type="submit" class="btn btn-rules">
                             Run Correlation Rules
                         </button>
                     </form>
 
                     <form action="/generate-samples" method="post">
-                        <button type="submit" class="btn btn-secondary" style="width: 100%; border-color: var(--accent); color: var(--accent);">
+                        <button type="submit" class="btn btn-samples">
                             Generate &amp; Ingest Training Dataset
                         </button>
                     </form>
 
                     <form action="/clear" method="post" onsubmit="return confirm('Clear all data from security-events and security-alerts indices?');">
-                        <button type="submit" class="btn btn-danger" style="width: 100%;">
+                        <button type="submit" class="btn btn-clear">
                             Clear Data (Indices Reset)
                         </button>
                     </form>
@@ -446,58 +794,56 @@
         </div>
 
         <!-- Example Raw Logs Collapsible Card -->
-        <div class="card" style="margin-bottom: 24px;">
+        <div class="card card-examples">
             <div class="card-title">
                 <span>Example Raw Logs (Expected Formats)</span>
-                <span class="badge badge-info">Stage 1 Reference</span>
+                <span class="badge badge-reference">Stage 1 Reference</span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px;">
+            <div class="code-grid">
                 <!-- Windows Sysmon -->
-                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
-                    <div style="font-weight: 600; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px;">Windows (Sysmon / Security JSONL)</div>
-                    <pre style="font-size: 0.75rem; color: #475569; overflow-x: auto; white-space: pre-wrap;">{"EventID": 4624, "TimeCreated": "2026-10-13T10:15:30Z", "Computer": "WIN-SRV01", "TargetUserName": "alice", "IpAddress": "192.168.1.50"}
-{"EventID": 4688, "TimeCreated": "2026-10-13T10:16:00Z", "Computer": "WIN-SRV01", "TargetUserName": "alice", "NewProcessName": "powershell.exe"}</pre>
+                <div class="code-panel">
+                    <div class="code-title code-title-win">Windows (Sysmon / Security JSONL)</div>
+                    <pre class="code-pre">{"EventID": 4624, "TimeCreated": "2026-10-13T10:15:30Z", "Computer": "WIN-SRV01", "TargetUserName": <span class="tok-hl">"alice"</span>, "IpAddress": <span class="tok-hl">"192.168.1.50"</span>}
+{"EventID": 4688, "TimeCreated": "2026-10-13T10:16:00Z", "Computer": "WIN-SRV01", "TargetUserName": <span class="tok-hl">"alice"</span>, "NewProcessName": <span class="tok-hl">"powershell.exe"</span>}</pre>
                 </div>
 
                 <!-- Linux Auditd -->
-                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
-                    <div style="font-weight: 600; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px;">Linux (auditd / auth.log)</div>
-                    <pre style="font-size: 0.75rem; color: #475569; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 srv01 sshd[123]: Failed password for invalid user root from 203.0.113.88 port 4210 ssh2
-type=SYSCALL msg=audit(1697191230.123:456): arch=c000003e syscall=59 success=yes exit=0 exe="/usr/bin/cat" name="/etc/shadow" host=srv01</pre>
+                <div class="code-panel">
+                    <div class="code-title code-title-linux">Linux (auditd / auth.log)</div>
+                    <pre class="code-pre">Oct 13 10:15:30 srv01 sshd[123]: Failed password for invalid user <span class="tok-hl">root</span> from <span class="tok-hl">203.0.113.88</span> port 4210 ssh2
+type=SYSCALL msg=audit(1697191230.123:456): arch=c000003e syscall=59 success=yes exit=0 exe=<span class="tok-hl">"/usr/bin/cat"</span> name=<span class="tok-hl">"/etc/shadow"</span> host=srv01</pre>
                 </div>
 
                 <!-- Network Firewall -->
-                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 14px;">
-                    <div style="font-weight: 600; color: var(--accent); font-size: 0.85rem; margin-bottom: 6px;">Network Firewall (UFW / iptables)</div>
-                    <pre style="font-size: 0.75rem; color: #475569; overflow-x: auto; white-space: pre-wrap;">Oct 13 10:15:30 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5510 DPT=22
-Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0.0.10 PROTO=TCP SPT=5511 DPT=80</pre>
+                <div class="code-panel">
+                    <div class="code-title code-title-fw">Network Firewall (UFW / iptables)</div>
+                    <pre class="code-pre">Oct 13 10:15:30 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=<span class="tok-hl">198.51.100.99</span> DST=<span class="tok-hl">10.0.0.10</span> PROTO=TCP SPT=5510 DPT=22
+Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=<span class="tok-hl">198.51.100.99</span> DST=<span class="tok-hl">10.0.0.10</span> PROTO=TCP SPT=5511 DPT=80</pre>
                 </div>
             </div>
         </div>
 
         <!-- Latest Upload Ingestion Summary (if present) -->
         {% if upload_summary %}
-        <div class="card" style="margin-bottom: 24px;">
+        <div class="card card-summary">
             <div class="card-title">
                 <span>Upload Ingestion Summary</span>
                 <span class="badge badge-success">Completed</span>
             </div>
 
             <div class="stats-grid">
-                <div class="stat-box">
+                <div class="stat-box stat-events">
                     <div class="stat-value">{{ upload_summary.events_parsed }}</div>
                     <div class="stat-label">Events Parsed</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-value" style="color: {% if upload_summary.skipped|length > 0 %}#d97706{% else %}var(--low){% endif %};">
+                    <div class="stat-value" style="color: {% if upload_summary.skipped|length > 0 %}#D97706{% else %}var(--low){% endif %};">
                         {{ upload_summary.skipped|length }}
                     </div>
                     <div class="stat-label">Lines Skipped</div>
                 </div>
-                <div class="stat-box">
-                    <div class="stat-value" style="color: var(--high);">
-                        {{ upload_summary.alerts|length }}
-                    </div>
+                <div class="stat-box stat-alerts">
+                    <div class="stat-value">{{ upload_summary.alerts|length }}</div>
                     <div class="stat-label">New Alerts Triggered</div>
                 </div>
             </div>
@@ -518,7 +864,7 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                             {% for item in upload_summary.skipped %}
                             <tr>
                                 <td>{{ item.line_number }}</td>
-                                <td style="color: var(--high);">{{ item.reason }}</td>
+                                <td style="color: var(--high); font-weight: 600;">{{ item.reason }}</td>
                                 <td><span class="code-snippet">{{ item.raw }}</span></td>
                             </tr>
                             {% endfor %}
@@ -531,35 +877,41 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
         {% endif %}
 
         <!-- SOC Triage Board Panels -->
-        <div class="card" style="margin-bottom: 24px;">
+        <div class="card card-soc">
             <div class="card-title">
                 <span>SOC Triage Board &mdash; Detection Overview</span>
-                <span class="badge badge-info">3 Correlated Visualizations</span>
+                <span class="badge badge-visualizations">3 Correlated Visualizations</span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+            <div class="soc-grid">
                 <!-- Panel 1: Alerts by Severity -->
-                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
-                    <div style="font-size: 0.825rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.3px;">
+                <div class="soc-subpanel soc-subpanel-severity">
+                    <div class="soc-subpanel-title">
                         1. Alerts by Severity
                     </div>
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <div style="flex: 1; background-color: #FEF2F2; border: 1px solid var(--critical); padding: 12px 10px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 1.35rem; font-weight: bold; color: var(--critical);">{{ sev_counts.critical }}</div>
-                            <div style="font-size: 0.7rem; color: var(--critical); text-transform: uppercase; font-weight: 600;">Critical</div>
+                    <div class="sev-tiles-row">
+                        <div class="sev-tile sev-tile-crit">
+                            <div class="sev-tile-val">
+                                <span class="status-dot dot-critical"></span>
+                                {{ sev_counts.critical }}
+                            </div>
+                            <div class="sev-tile-lbl">Critical</div>
                         </div>
-                        <div style="flex: 1; background-color: #FFF7ED; border: 1px solid var(--high); padding: 12px 10px; border-radius: 8px; text-align: center;">
-                            <div style="font-size: 1.35rem; font-weight: bold; color: var(--high);">{{ sev_counts.high }}</div>
-                            <div style="font-size: 0.7rem; color: var(--high); text-transform: uppercase; font-weight: 600;">High</div>
+                        <div class="sev-tile sev-tile-high">
+                            <div class="sev-tile-val">
+                                <span class="status-dot dot-high"></span>
+                                {{ sev_counts.high }}
+                            </div>
+                            <div class="sev-tile-lbl">High</div>
                         </div>
                     </div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                    <div class="soc-subpanel-footer">
                         Correlated across temporal sliding windows (5 min / 2 min).
                     </div>
                 </div>
 
                 <!-- Panel 2: Top Source IPs -->
-                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
-                    <div style="font-size: 0.825rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.3px;">
+                <div class="soc-subpanel soc-subpanel-ips">
+                    <div class="soc-subpanel-title">
                         2. Top Attacking Source IPs
                     </div>
                     {% if top_ips|length > 0 %}
@@ -580,13 +932,13 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                         </tbody>
                     </table>
                     {% else %}
-                    <div style="color: var(--text-muted); font-size: 0.8rem; padding: 10px 0;">No active IP anomalies recorded.</div>
+                    <div class="soc-subpanel-empty">No active IP anomalies recorded.</div>
                     {% endif %}
                 </div>
 
                 <!-- Panel 3: Post-Logon Suspicious Hosts -->
-                <div style="background-color: #f8fafc; border: 1px solid var(--card-border); border-radius: 8px; padding: 16px;">
-                    <div style="font-size: 0.825rem; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.3px;">
+                <div class="soc-subpanel soc-subpanel-hosts">
+                    <div class="soc-subpanel-title">
                         3. Suspicious Execution Hosts
                     </div>
                     {% if suspicious_hosts|length > 0 %}
@@ -601,7 +953,7 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                         <tbody>
                             {% for sh in suspicious_hosts %}
                             <tr>
-                                <td style="color: var(--text-main); font-weight: 600;">{{ sh.host }}</td>
+                                <td style="color: var(--text-heading); font-weight: 600;">{{ sh.host }}</td>
                                 <td>{{ sh.user }}</td>
                                 <td><span class="code-snippet">2 events</span></td>
                             </tr>
@@ -609,17 +961,17 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                         </tbody>
                     </table>
                     {% else %}
-                    <div style="color: var(--text-muted); font-size: 0.8rem; padding: 10px 0;">No post-logon process executions detected.</div>
+                    <div class="soc-subpanel-empty">No post-logon process executions detected.</div>
                     {% endif %}
                 </div>
             </div>
         </div>
 
         <!-- Generated Security Alerts -->
-        <div class="card">
+        <div class="card card-alerts">
             <div class="card-title">
                 <span>Security Alerts (`security-alerts`)</span>
-                <span class="badge badge-critical">{{ alerts|length }} Total</span>
+                <span class="badge badge-alerts-total">{{ alerts|length }} Total</span>
             </div>
 
             {% if alerts|length > 0 %}
@@ -645,12 +997,12 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
                                     {{ a.severity }}
                                 </span>
                             </td>
-                            <td style="font-weight: 600;">{{ a.rule_name }}</td>
+                            <td style="font-weight: 600; color: var(--text-heading);">{{ a.rule_name }}</td>
                             <td><span class="code-snippet">{{ a.mitre_technique }}</span></td>
-                            <td>{{ a.src_ip or '-' }}</td>
+                            <td class="ip-cell">{{ a.src_ip or '-' }}</td>
                             <td>{{ a.user or '-' }}</td>
                             <td>{{ a.host or '-' }}</td>
-                            <td style="font-size: 0.75rem; color: var(--text-muted);">
+                            <td style="font-size: 0.75rem; color: var(--text-label);">
                                 {{ a.first_seen }} &rarr;<br>{{ a.last_seen }}
                             </td>
                             <td>
@@ -663,6 +1015,7 @@ Oct 13 10:15:45 fw01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=198.51.100.99 DST=10.0
             </div>
             {% else %}
             <div class="empty-state">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 No alerts detected. Upload sample logs or trigger correlation to evaluate detection rules.
             </div>
             {% endif %}

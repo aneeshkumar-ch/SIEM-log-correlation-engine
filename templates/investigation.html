@@ -6,18 +6,41 @@
     <title>BCSSL Lab 07 - Student Investigation Workspace</title>
     <style>
         :root {
-            --bg-color: #f8fafc;
-            --card-bg: #ffffff;
-            --card-border: #e2e8f0;
+            /* Page & Base Colors */
+            --bg-page: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --card-border: #E2E8F0;
+            --card-radius: 12px;
             --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --text-subtle: #94a3b8;
+
+            /* Typography */
+            --text-heading: #1E1B4B; /* dark indigo */
+            --text-body: #475569;
+            --text-label: #64748B;
+            --text-muted: #94A3B8;
+
+            /* Card Accent Bars (6px on left edge, rounded) */
+            --accent-bar-header: #1E1B5E;    /* navy */
+            --accent-bar-nav: #059669;       /* green */
+            --accent-bar-scenarios: #2563EB; /* blue */
+            --accent-bar-playbook: #7C3AED;  /* purple */
+            --accent-bar-findings: #0F766E;  /* teal */
+
+            /* Action Colors */
             --accent: #0F766E;
             --accent-hover: #115E59;
             --accent-light: #F0FDFA;
             --accent-border: #CCFBF1;
-            --danger: #dc2626;
+
+            /* Header Buttons */
+            --btn-main-bg: #0F766E;
+            --btn-main-text: #FFFFFF;
+            --btn-kibana-border: #0F766E;
+            --btn-kibana-text: #0F766E;
+            --btn-discover-border: #B91C1C;
+            --btn-discover-text: #B91C1C;
+
+            /* Severity Colors */
             --critical: #8E0000;
             --high: #E7664C;
             --medium: #FEC514;
@@ -28,12 +51,12 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
+            background-color: var(--bg-page);
+            color: var(--text-body);
             padding: 24px 32px;
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
@@ -44,29 +67,45 @@
             margin: 0 auto;
         }
 
+        /* Header Card with Navy Accent Bar */
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 12px;
+            border-radius: var(--card-radius);
             box-shadow: var(--card-shadow);
-            padding: 18px 24px;
+            padding: 20px 24px 20px 28px;
             margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background-color: var(--accent-bar-header);
+            border-top-left-radius: var(--card-radius);
+            border-bottom-left-radius: var(--card-radius);
         }
 
         h1 {
             font-size: 1.35rem;
             font-weight: 700;
-            color: var(--text-main);
+            color: var(--text-heading);
             letter-spacing: -0.3px;
             margin-bottom: 3px;
         }
 
         .subtitle {
             font-size: 0.825rem;
-            color: var(--text-muted);
+            color: var(--text-label);
+            font-weight: 500;
         }
 
         .nav-links {
@@ -75,69 +114,85 @@
             align-items: center;
         }
 
+        /* Buttons */
         .btn {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 6px;
             padding: 8px 16px;
             border-radius: 8px;
             font-size: 0.825rem;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
             border: 1px solid transparent;
             text-decoration: none;
             transition: all 0.15s ease-in-out;
         }
 
-        .btn-primary {
-            background-color: var(--accent);
-            color: #ffffff;
-            border-color: var(--accent);
-            font-weight: 600;
+        /* Header Navigation Buttons */
+        .nav-links a[href="/"] {
+            background-color: var(--btn-main-bg);
+            color: var(--btn-main-text);
+            border-color: var(--btn-main-bg);
         }
-        .btn-primary:hover {
+        .nav-links a[href="/"]:hover {
             background-color: var(--accent-hover);
             border-color: var(--accent-hover);
         }
 
-        .btn-secondary {
-            background-color: #ffffff;
-            color: #334155;
-            border-color: #cbd5e1;
+        .nav-links a.btn-kibana {
+            background-color: #FFFFFF;
+            color: var(--btn-kibana-text);
+            border-color: var(--btn-kibana-border);
         }
-        .btn-secondary:hover {
-            background-color: #f8fafc;
-            border-color: #94a3b8;
-            color: var(--text-main);
-        }
-
-        .btn-kibana {
-            background-color: #ffffff;
-            color: var(--accent);
-            border-color: var(--accent);
-        }
-        .btn-kibana:hover {
+        .nav-links a.btn-kibana:hover {
             background-color: var(--accent-light);
         }
 
-        .btn-success {
-            background-color: var(--accent);
-            color: #ffffff;
+        .nav-links a[href*="discover"] {
+            background-color: #FFFFFF;
+            color: var(--btn-discover-text);
+            border-color: var(--btn-discover-border);
+        }
+        .nav-links a[href*="discover"]:hover {
+            background-color: #FEF2F2;
         }
 
+        /* Base Card Styling with Left Accent Bar */
         .card {
             background-color: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 12px;
+            border-radius: var(--card-radius);
             box-shadow: var(--card-shadow);
-            padding: 24px;
+            padding: 24px 26px 24px 30px;
             margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
         }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background-color: var(--card-accent, #1E1B5E);
+            border-top-left-radius: var(--card-radius);
+            border-bottom-left-radius: var(--card-radius);
+        }
+
+        /* Card accent color assignment */
+        .card-nav, .container > .card:first-of-type { --card-accent: var(--accent-bar-nav); }
+        .card-scenarios, .grid-2 > div:first-child > .card:first-child { --card-accent: var(--accent-bar-scenarios); }
+        .card-playbook, .grid-2 > div:first-child > .card:last-child { --card-accent: var(--accent-bar-playbook); }
+        .card-findings, .grid-2 > div:last-child > .card { --card-accent: var(--accent-bar-findings); }
 
         .card-title {
             font-size: 1.05rem;
-            font-weight: 600;
-            color: var(--text-main);
+            font-weight: 700;
+            color: var(--text-heading);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -146,38 +201,92 @@
             padding-bottom: 12px;
         }
 
+        /* Direct Kibana Navigation Bar */
+        .container > .card:first-of-type a.btn-secondary {
+            background-color: #FFFFFF;
+            color: var(--text-body);
+            border: 1px solid #CBD5E1;
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .container > .card:first-of-type a.btn-secondary:hover {
+            background-color: #F1F5F9;
+            border-color: #94A3B8;
+            color: var(--text-heading);
+            transform: translateY(-1px);
+        }
+
+        .container > .card:first-of-type span {
+            color: var(--text-label) !important;
+            font-weight: 700 !important;
+        }
+
+        /* Badges */
         .badge {
             display: inline-flex;
             align-items: center;
             padding: 3px 10px;
             border-radius: 9999px;
             font-size: 0.725rem;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.3px;
             line-height: 1.3;
         }
+
+        /* Card Header Badges */
+        .grid-2 > div:first-child > .card:first-child .card-title .badge {
+            background-color: #EDE9FE;
+            color: #6D28D9;
+            border: 1px solid #DDD6FE;
+        }
+
+        .grid-2 > div:first-child > .card:last-child .card-title .badge {
+            background-color: #D97706;
+            color: #FFFFFF;
+            border: none;
+        }
+
+        .grid-2 > div:last-child > .card .card-title .badge {
+            background-color: #0F766E;
+            color: #FFFFFF;
+            border: none;
+        }
+
+        /* Inline MITRE & Severity Badges */
         .badge-mitre {
-            background-color: #f8fafc;
+            background-color: #F1F5F9;
             color: #334155;
-            border: 1px solid #cbd5e1;
+            border: 1px solid #CBD5E1;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-weight: 700;
         }
-        .badge-high {
-            background-color: #FFF7ED;
-            color: var(--high);
-            border: 1px solid var(--high);
-        }
+
         .badge-crit {
             background-color: #FEF2F2;
             color: var(--critical);
-            border: 1px solid var(--critical);
+            border: 1px solid #FECDD3;
         }
+
+        .badge-high {
+            background-color: #FFF7ED;
+            color: var(--high);
+            border: 1px solid #FFEDD5;
+        }
+
         .badge-med {
             background-color: #FEFCE8;
             color: #92400E;
-            border: 1px solid var(--medium);
+            border: 1px solid #FEF08A;
         }
 
+        /* Layout Grid */
         .grid-2 {
             display: grid;
             grid-template-columns: 1fr;
@@ -190,24 +299,28 @@
             }
         }
 
+        /* Scenario Cards */
         .scenario-box {
-            background-color: #ffffff;
+            background-color: #FFFFFF;
             border: 1px solid var(--card-border);
             border-radius: 10px;
-            padding: 16px;
+            padding: 16px 18px;
             margin-bottom: 12px;
             cursor: pointer;
             transition: all 0.15s ease-in-out;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
         }
 
         .scenario-box:hover {
-            border-color: var(--accent);
-            box-shadow: 0 2px 4px rgba(15, 118, 110, 0.08);
+            border-color: #2563EB;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1), 0 2px 4px -2px rgba(37, 99, 235, 0.06);
+            transform: translateY(-1px);
         }
 
         .scenario-box.selected {
-            border: 2px solid var(--accent);
-            box-shadow: 0 0 0 1px var(--accent), 0 2px 6px rgba(15, 118, 110, 0.12);
+            background-color: #F8FAFC;
+            border: 2px solid #2563EB;
+            box-shadow: 0 0 0 1px #2563EB, 0 4px 6px -1px rgba(37, 99, 235, 0.12);
         }
 
         .scenario-header {
@@ -218,23 +331,25 @@
         }
 
         .scenario-name {
-            font-weight: 600;
-            color: var(--text-main);
+            font-weight: 700;
+            color: var(--text-heading);
             font-size: 0.95rem;
         }
 
         .scenario-desc {
             font-size: 0.85rem;
-            color: #475569;
+            color: var(--text-body);
             margin-bottom: 10px;
+            line-height: 1.45;
         }
 
         .scenario-meta {
             font-size: 0.78rem;
-            color: var(--text-muted);
+            color: var(--text-label);
             display: flex;
             gap: 12px;
             align-items: center;
+            font-weight: 500;
         }
 
         /* 8-Step Workflow Checklist */
@@ -243,12 +358,17 @@
             align-items: flex-start;
             gap: 12px;
             padding: 12px 14px;
-            background-color: #f8fafc;
+            background-color: #F8FAFC;
             border: 1px solid var(--card-border);
             border-radius: 8px;
             margin-bottom: 8px;
             font-size: 0.875rem;
             transition: all 0.15s ease-in-out;
+        }
+
+        .checklist-item:hover {
+            background-color: #F1F5F9;
+            border-color: #CBD5E1;
         }
 
         .checklist-item input[type="checkbox"] {
@@ -257,17 +377,29 @@
             height: 18px;
             cursor: pointer;
             accent-color: var(--accent);
+            border-radius: 4px;
         }
 
         .checklist-item.completed {
-            background-color: #f0fdf4;
-            border-color: #86efac;
+            background-color: #F0FDF4;
+            border-color: #86EFAC;
+        }
+
+        .checklist-item.completed .checklist-title {
+            color: #15803D;
         }
 
         .checklist-step-num {
             font-weight: 700;
             color: var(--accent);
             min-width: 55px;
+            font-size: 0.825rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .checklist-item.completed .checklist-step-num {
+            color: #166534;
         }
 
         .checklist-content {
@@ -275,14 +407,16 @@
         }
 
         .checklist-title {
-            font-weight: 600;
-            color: var(--text-main);
+            font-weight: 700;
+            color: var(--text-heading);
+            font-size: 0.9rem;
         }
 
         .checklist-desc {
             font-size: 0.8rem;
-            color: var(--text-muted);
+            color: var(--text-label);
             margin-top: 2px;
+            line-height: 1.4;
         }
 
         /* Findings Form */
@@ -293,8 +427,8 @@
         label {
             display: block;
             font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--text-muted);
+            font-weight: 700;
+            color: var(--text-label);
             text-transform: uppercase;
             letter-spacing: 0.4px;
             margin-bottom: 6px;
@@ -303,12 +437,16 @@
         input[type="text"], select, textarea {
             width: 100%;
             padding: 9px 12px;
-            background-color: #ffffff;
-            border: 1px solid #cbd5e1;
+            background-color: #FFFFFF;
+            border: 1px solid #CBD5E1;
             border-radius: 8px;
-            color: var(--text-main);
+            color: var(--text-body);
             font-size: 0.875rem;
             transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input[type="text"]::placeholder, textarea::placeholder {
+            color: var(--text-muted);
         }
 
         textarea {
@@ -319,8 +457,33 @@
 
         input:focus, select:focus, textarea:focus {
             outline: none;
+            border-color: #2563EB;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        /* Form Action Buttons */
+        form .btn-primary {
+            background-color: var(--accent);
+            color: #FFFFFF;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+            font-weight: 700;
+            padding: 10px 18px;
+        }
+        form .btn-primary:hover {
+            background-color: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        form a#exportBtn {
+            background-color: #FFFFFF;
+            color: var(--text-heading);
+            border-color: #CBD5E1;
+            font-weight: 700;
+            padding: 10px 18px;
+        }
+        form a#exportBtn:hover {
+            background-color: #F8FAFC;
+            border-color: #94A3B8;
         }
 
         .alert-box {
@@ -328,10 +491,11 @@
             border-radius: 8px;
             margin-bottom: 24px;
             font-size: 0.9rem;
+            font-weight: 500;
             box-shadow: var(--card-shadow);
         }
-        .alert-success { background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
-        .alert-info { background-color: #f0fdfa; border: 1px solid #ccfbf1; color: #115e59; }
+        .alert-success { background-color: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
+        .alert-info { background-color: #F0FDFA; border: 1px solid #CCFBF1; color: #115E59; }
     </style>
 </head>
 <body>

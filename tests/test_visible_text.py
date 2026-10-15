@@ -10,12 +10,17 @@ class VisibleTextExtractor(HTMLParser):
         super().__init__()
         self.skip_tags = {'script', 'style'}
         self.current_skip = None
+        self.in_pre = False
+        self.pre_buffer = []
         self.tokens = []
 
     def handle_starttag(self, tag, attrs):
         if tag.lower() in self.skip_tags:
             self.current_skip = tag.lower()
             return
+        if tag.lower() == 'pre':
+            self.in_pre = True
+            self.pre_buffer = []
         attr_dict = dict(attrs)
         if 'placeholder' in attr_dict:
             val = attr_dict['placeholder']
@@ -24,13 +29,22 @@ class VisibleTextExtractor(HTMLParser):
     def handle_endtag(self, tag):
         if self.current_skip == tag.lower():
             self.current_skip = None
+        if tag.lower() == 'pre':
+            self.in_pre = False
+            cleaned = re.sub(r'\s+', ' ', ''.join(self.pre_buffer)).strip()
+            if cleaned:
+                self.tokens.append(cleaned)
+            self.pre_buffer = []
 
     def handle_data(self, data):
         if self.current_skip:
             return
-        cleaned = re.sub(r'\s+', ' ', data).strip()
-        if cleaned:
-            self.tokens.append(cleaned)
+        if self.in_pre:
+            self.pre_buffer.append(data)
+        else:
+            cleaned = re.sub(r'\s+', ' ', data).strip()
+            if cleaned:
+                self.tokens.append(cleaned)
 
 def extract_visible_tokens(html_content: str):
     extractor = VisibleTextExtractor()
