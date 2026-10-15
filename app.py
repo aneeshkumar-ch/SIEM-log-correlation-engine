@@ -4,6 +4,7 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime, timezone
+from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 
 from fastapi import FastAPI, Request, File, Form, UploadFile, HTTPException
@@ -17,11 +18,21 @@ import collector
 import sample_log_generator
 import dashboard_service
 from storage import get_es_client, initialize_indices, bulk_index_events, MockElasticsearch
+from pipeline_manager import pipeline_manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="SIEM Log Correlation Engine - BCSSL Lab 07")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan handler to start and stop background collector and correlation scheduler."""
+    await pipeline_manager.start()
+    yield
+    await pipeline_manager.stop()
+
+
+app = FastAPI(title="SIEM Log Correlation Engine - BCSSL Lab 07", lifespan=lifespan)
 
 # Templates directory
 templates_dir = Path(__file__).resolve().parent / "templates"
@@ -200,6 +211,7 @@ async def handle_upload(
         es.indices.refresh(index=config.INDEX_EVENTS)
     except Exception:
         pass
+    pipeline_manager.record_event_ingest(count=indexed_count)
     logger.info("Successfully indexed %d normalized events into %s", indexed_count, config.INDEX_EVENTS)
 
     # 7. Run correlation rules
@@ -208,6 +220,7 @@ async def handle_upload(
         es.indices.refresh(index=config.INDEX_ALERTS)
     except Exception:
         pass
+    pipeline_manager.record_correlation_run(new_alerts)
 
     state = get_pipeline_state(es)
     upload_summary = {
@@ -237,6 +250,7 @@ async def trigger_correlation(request: Request):
         es.indices.refresh(index=config.INDEX_ALERTS)
     except Exception:
         pass
+    pipeline_manager.record_correlation_run(alerts)
     state = get_pipeline_state(es)
     return templates.TemplateResponse(
         request=request,
@@ -263,6 +277,7 @@ async def clear_pipeline_data(request: Request):
             es.indices.refresh(index=config.INDEX_ALERTS)
         except Exception:
             pass
+        pipeline_manager.reset_state()
         msg = "Pipeline data successfully cleared. Both indices reset."
         msg_type = "success"
     except Exception as e:
@@ -317,6 +332,40 @@ async def api_dashboard_data(events_index: Optional[str] = None, alerts_index: O
     alt_idx = alerts_index or config.INDEX_ALERTS
     data = dashboard_service.get_dashboard_analytics(es, events_index=ev_idx, alerts_index=alt_idx)
     return JSONResponse(content=data)
+
+
+@app.get("/api/pipeline-health")
+async def api_pipeline_health():
+    """Returns background collector, correlation scheduler, and Elasticsearch health."""
+    es = get_es_client()
+    return JSONResponse(content=pipeline_manager.get_health(es))
+
+
+KIBANA_REFRESH_G = "_g=(refreshInterval:(pause:!f,value:2000),time:(from:now-7d,to:now%2B1d))"
+
+
+@app.get("/open/soc")
+async def open_soc_dashboard():
+    """Redirects to Kibana SOC Triage Board with forced 2s auto-refresh global state."""
+    return RedirectResponse(f"{config.KIBANA_HOST}/app/dashboards#/view/soc-triage-board-dashboard?{KIBANA_REFRESH_G}")
+
+
+@app.get("/open/alerts")
+async def open_alerts_dashboard():
+    """Redirects to Kibana Alerts Dashboard with forced 2s auto-refresh global state."""
+    return RedirectResponse(f"{config.KIBANA_HOST}/app/dashboards#/view/alerts-dashboard?{KIBANA_REFRESH_G}")
+
+
+@app.get("/open/timeline")
+async def open_timeline_dashboard():
+    """Redirects to Kibana Timeline Analysis Dashboard with forced 2s auto-refresh global state."""
+    return RedirectResponse(f"{config.KIBANA_HOST}/app/dashboards#/view/timeline-analysis-dashboard?{KIBANA_REFRESH_G}")
+
+
+@app.get("/open/discover")
+async def open_discover_search():
+    """Redirects to Kibana Discover Events search with forced 2s auto-refresh global state."""
+    return RedirectResponse(f"{config.KIBANA_HOST}/app/discover#/view/events-search?{KIBANA_REFRESH_G}")
 
 
 @app.get("/investigation", response_class=HTMLResponse)
@@ -455,7 +504,15 @@ async def generate_training_dataset(request: Request):
         res = collector.collect_file(Path(fpath), source_type=stype, es=es)
         total_parsed += res["events_parsed"]
 
+    if total_parsed > 0:
+        pipeline_manager.record_event_ingest(total_parsed)
+
     alerts = correlate.run_correlation(es)
+    try:
+        es.indices.refresh(index=config.INDEX_ALERTS)
+    except Exception:
+        pass
+    pipeline_manager.record_correlation_run(alerts)
     state = get_pipeline_state(es)
 
     return templates.TemplateResponse(

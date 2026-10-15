@@ -489,7 +489,8 @@ def run_correlation(es: Any = None, events_index: str = config.INDEX_EVENTS, ale
         )
         if a_id in seen_ids:
             continue
-        seen_ids.add(a_id)
+        if "created_at" not in alert or not alert["created_at"]:
+            alert["created_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         clean_alert = sanitize_doc_ips(alert)
         # Index with deterministic ID

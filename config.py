@@ -3,11 +3,11 @@ from pathlib import Path
 
 # Base Paths
 BASE_DIR = Path(__file__).resolve().parent
-UPLOADS_DIR = BASE_DIR / "uploads"
-UPLOADS_DIR.mkdir(exist_ok=True)
+UPLOADS_DIR = Path(os.getenv("UPLOADS_DIR", str(BASE_DIR / "uploads")))
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
-INCOMING_DIR = BASE_DIR / "incoming"
-INCOMING_DIR.mkdir(exist_ok=True)
+INCOMING_DIR = Path(os.getenv("INCOMING_DIR", str(BASE_DIR / "incoming")))
+INCOMING_DIR.mkdir(parents=True, exist_ok=True)
 
 SAMPLE_LOGS_DIR = BASE_DIR / "sample_logs"
 SAMPLE_LOGS_DIR.mkdir(exist_ok=True)
@@ -23,6 +23,13 @@ KIBANA_HOST = os.getenv("KIBANA_HOST", "http://127.0.0.1:5601")
 INDEX_EVENTS = os.getenv("INDEX_EVENTS", "security-events")
 INDEX_ALERTS = os.getenv("INDEX_ALERTS", "security-alerts")
 LEGACY_INDEX_EVENTS = "normalized-events"
+
+# Background Pipeline Configuration
+COLLECTOR_POLL_SECONDS = int(os.getenv("COLLECTOR_POLL_SECONDS", "2"))
+CORRELATION_INTERVAL_SECONDS = int(os.getenv("CORRELATION_INTERVAL_SECONDS", "10"))
+ENABLE_COLLECTOR = os.getenv("ENABLE_COLLECTOR", "true").lower() in ("true", "1", "yes")
+ENABLE_SCHEDULER = os.getenv("ENABLE_SCHEDULER", "true").lower() in ("true", "1", "yes")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "")
 
 # Switchable Mock ES flag (default is False: real Elasticsearch client)
 USE_MOCK_ES = os.getenv("USE_MOCK_ES", "false").lower() in ("true", "1", "yes")

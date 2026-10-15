@@ -372,10 +372,252 @@
       margin-bottom: 8px;
       stroke: #D1D5DB;
     }
+
+    /* Health Strip */
+    .health-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 8px 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #334155;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .health-strip.health-strip-red {
+      background-color: #8E0000 !important;
+      border-color: #700000 !important;
+      color: #FFFFFF !important;
+    }
+
+    .health-strip.health-strip-red .health-status-main {
+      color: #FFFFFF !important;
+      font-weight: 600;
+    }
+
+    .health-strip.health-strip-red .health-dot {
+      background-color: #FFFFFF !important;
+      box-shadow: 0 0 6px #FFFFFF;
+    }
+
+    .health-strip.health-strip-red .pill-btn {
+      background: rgba(255, 255, 255, 0.2) !important;
+      border-color: rgba(255, 255, 255, 0.4) !important;
+      color: #FFFFFF !important;
+    }
+
+    .health-strip.health-strip-red .new-alert-counter {
+      background: #FFFFFF !important;
+      color: #8E0000 !important;
+    }
+
+    .health-status-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .health-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #10B981;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .health-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .new-alert-counter {
+      background: #E0E7FF;
+      color: #3730A3;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      user-select: none;
+    }
+
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 12px;
+      background: #FFFFFF;
+      border: 1px solid #D1D5DB;
+      border-radius: 9999px;
+      font-size: 11px;
+      color: #374151;
+      cursor: pointer;
+      font-weight: 500;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+
+    .pill-btn:hover {
+      background: #F3F4F6;
+    }
+
+    .pill-btn.active {
+      background: #0F766E !important;
+      color: #FFFFFF !important;
+      border-color: #0F766E !important;
+    }
+
+    /* Critical Banner */
+    .critical-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #8E0000;
+      color: #FFFFFF;
+      padding: 10px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(142, 0, 0, 0.25);
+    }
+
+    .critical-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .critical-banner-close {
+      background: transparent;
+      border: none;
+      color: #FFFFFF;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+
+    .critical-banner-close:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Toast Container */
+    .toast-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 380px;
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-left: 4px solid #8E0000;
+      border-radius: 6px;
+      padding: 10px 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      animation: toastSlideIn 0.25s ease-out;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .toast.toast-critical { border-left-color: #8E0000; }
+    .toast.toast-high { border-left-color: #E7664C; }
+    .toast.toast-medium { border-left-color: #FEC514; }
+    .toast.toast-low { border-left-color: #54B399; }
+
+    .toast-body {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .toast-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toast-title {
+      font-weight: 700;
+      color: #111827;
+      font-size: 13px;
+    }
+
+    .toast-meta {
+      color: #6B7280;
+      font-size: 11px;
+    }
+
+    .toast-close {
+      background: transparent;
+      border: none;
+      color: #9CA3AF;
+      font-size: 15px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0 2px;
+    }
+
+    .toast-close:hover {
+      color: #374151;
+    }
+
+    @keyframes toastSlideIn {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
   </style>
 </head>
 <body>
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
   <div class="dashboard-container">
+    <!-- Persistent Critical Alert Banner -->
+    <div id="critical-banner" class="critical-banner" style="display: none;">
+      <div class="critical-banner-content">
+        <span>🚨</span>
+        <span id="critical-banner-text">Critical Alert: Immediate Attention Required</span>
+      </div>
+      <button type="button" id="critical-banner-dismiss" class="critical-banner-close" title="Dismiss banner">✕</button>
+    </div>
+
+    <!-- Pipeline Health Strip -->
+    <div id="health-strip" class="health-strip">
+      <div class="health-status-main">
+        <span class="health-dot" id="health-status-dot"></span>
+        <span id="health-status-text">Collector running | Correlation every 10 s | Last event 0s ago | Last alert 0s ago</span>
+      </div>
+      <div class="health-actions">
+        <span class="new-alert-counter" id="new-alert-counter" title="New alerts detected since you opened this page">0 new</span>
+        <button type="button" id="sound-toggle-btn" class="pill-btn" title="Toggle audio alert on new alerts">
+          <span id="sound-icon">🔇</span> <span id="sound-label">Sound: Off</span>
+        </button>
+        <button type="button" id="notif-toggle-btn" class="pill-btn" title="Enable browser desktop notifications">
+          <span id="notif-icon">🔔</span> <span id="notif-label">Desktop: Off</span>
+        </button>
+      </div>
+    </div>
     <!-- Header -->
     <header class="dashboard-header">
       <div class="title-group">
@@ -505,9 +747,263 @@
     let isFetching = false;
     let lastGoodData = null;
 
+    // Notification and Health Tracking State
+    let knownAlertIds = new Set();
+    let isFirstLoad = true;
+    let newAlertsSinceLoad = 0;
+    let soundEnabled = false;
+    let desktopNotifEnabled = false;
+    let isCriticalBannerDismissed = false;
+    const pageOpenTimeMs = Date.now();
+
     function setContentInPlace(container, newHtml) {
       if (container && container.innerHTML !== newHtml) {
         container.innerHTML = newHtml;
+      }
+    }
+
+    function formatTimeAgo(isoString) {
+      if (!isoString) return "0s ago";
+      const dt = new Date(isoString);
+      if (isNaN(dt.getTime())) return "0s ago";
+      const diffSec = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 1000));
+      if (diffSec < 60) return `${diffSec}s ago`;
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const diffHours = Math.floor(diffMin / 60);
+      return `${diffHours}h ago`;
+    }
+
+    async function updatePipelineHealth() {
+      try {
+        const resp = await fetch("/api/pipeline-health");
+        if (!resp.ok) {
+          setHealthStripError();
+          return;
+        }
+        const health = await resp.json();
+        const strip = document.getElementById("health-strip");
+        const textEl = document.getElementById("health-status-text");
+
+        const collectorTxt = health.collector_running ? "Collector running" : "Collector stopped";
+        const corrSec = health.correlation_interval_seconds || 10;
+        const corrTxt = health.scheduler_running ? `Correlation every ${corrSec} s` : "Scheduler stopped";
+        const eventAgo = formatTimeAgo(health.last_event_ingested_at);
+        const alertAgo = formatTimeAgo(health.last_alert_raised_at);
+
+        if (textEl) {
+          textEl.textContent = `${collectorTxt} | ${corrTxt} | Last event ${eventAgo} | Last alert ${alertAgo}`;
+        }
+
+        // Strip turns red if there has been no correlation run for 60 seconds or Elasticsearch is unreachable
+        let isStale = false;
+        if (health.elasticsearch_status !== "connected") {
+          isStale = true;
+        } else if (health.last_correlation_at) {
+          const corrAge = (Date.now() - new Date(health.last_correlation_at).getTime()) / 1000;
+          if (corrAge > 60) isStale = true;
+        } else if ((Date.now() - pageOpenTimeMs) / 1000 > 60) {
+          isStale = true;
+        }
+
+        if (strip) {
+          if (isStale) {
+            strip.classList.add("health-strip-red");
+          } else {
+            strip.classList.remove("health-strip-red");
+          }
+        }
+      } catch (e) {
+        setHealthStripError();
+      }
+    }
+
+    function setHealthStripError() {
+      const strip = document.getElementById("health-strip");
+      const textEl = document.getElementById("health-status-text");
+      if (strip) strip.classList.add("health-strip-red");
+      if (textEl) textEl.textContent = "Collector unreachable | Correlation stopped | Elasticsearch unreachable";
+    }
+
+    function playAlertBeep() {
+      if (!soundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch (e) {
+        console.warn("Audio Context beep error:", e);
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById("sound-toggle-btn");
+      const icon = document.getElementById("sound-icon");
+      const label = document.getElementById("sound-label");
+      if (soundEnabled) {
+        btn.classList.add("active");
+        icon.textContent = "🔊";
+        label.textContent = "Sound: On";
+        playAlertBeep();
+      } else {
+        btn.classList.remove("active");
+        icon.textContent = "🔇";
+        label.textContent = "Sound: Off";
+      }
+    }
+
+    async function toggleDesktopNotification() {
+      const btn = document.getElementById("notif-toggle-btn");
+      const icon = document.getElementById("notif-icon");
+      const label = document.getElementById("notif-label");
+
+      if (!("Notification" in window)) {
+        alert("Desktop notifications are not supported in this browser.");
+        return;
+      }
+
+      if (!desktopNotifEnabled) {
+        let perm = Notification.permission;
+        if (perm !== "granted") {
+          perm = await Notification.requestPermission();
+        }
+        if (perm === "granted") {
+          desktopNotifEnabled = true;
+          btn.classList.add("active");
+          icon.textContent = "🔔";
+          label.textContent = "Desktop: On";
+        } else {
+          desktopNotifEnabled = false;
+          btn.classList.remove("active");
+          icon.textContent = "🔕";
+          label.textContent = "Desktop: Blocked";
+        }
+      } else {
+        desktopNotifEnabled = false;
+        btn.classList.remove("active");
+        icon.textContent = "🔔";
+        label.textContent = "Desktop: Off";
+      }
+    }
+
+    function sendDesktopNotif(alert) {
+      if (!desktopNotifEnabled || !("Notification" in window) || Notification.permission !== "granted") return;
+      try {
+        const title = `${(alert.severity || "Alert").toUpperCase()}: ${alert.rule_name || "Security Alert"}`;
+        new Notification(title, {
+          body: `Host: ${alert.host || "N/A"} | User: ${alert.user || "N/A"}\nTime: ${alert.created_at || alert.first_seen || ""}`,
+          tag: alert.id || undefined
+        });
+      } catch (e) {
+        console.warn("Desktop notification error:", e);
+      }
+    }
+
+    function showToast(alert) {
+      const container = document.getElementById("toast-container");
+      if (!container) return;
+
+      const sev = (alert.severity || "medium").toLowerCase();
+      const toast = document.createElement("div");
+      toast.className = `toast toast-${sev}`;
+
+      const raisedAt = (alert.created_at || alert.first_seen || "").slice(11, 19) || "Just now";
+      toast.innerHTML = `
+        <div class="toast-body">
+          <div class="toast-header">
+            <span class="badge badge-${sev}">${sev}</span>
+            <span class="toast-title">${alert.rule_name || 'Alert'}</span>
+          </div>
+          <div class="toast-meta">
+            <span>${alert.user || 'N/A'} @ ${alert.host || 'N/A'}</span> &bull;
+            <span>${alert.src_ip || ''}</span> &bull;
+            <span>${raisedAt}</span>
+          </div>
+        </div>
+        <button type="button" class="toast-close" title="Close">&times;</button>
+      `;
+
+      toast.querySelector(".toast-close").addEventListener("click", () => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateX(30px)";
+        setTimeout(() => toast.remove(), 300);
+      });
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.style.opacity = "0";
+          toast.style.transform = "translateX(30px)";
+          setTimeout(() => toast.remove(), 300);
+        }
+      }, 6000);
+    }
+
+    function showCriticalBanner(alert) {
+      const banner = document.getElementById("critical-banner");
+      const text = document.getElementById("critical-banner-text");
+      if (!banner || isCriticalBannerDismissed) return;
+      text.textContent = `CRITICAL ALERT: ${alert.rule_name || 'Threat Detected'} on ${alert.host || 'Unknown Host'} (${alert.src_ip || 'No IP'})`;
+      banner.style.display = "flex";
+    }
+
+    function processAlertNotifications(recentAlerts) {
+      if (!recentAlerts || recentAlerts.length === 0) return;
+
+      if (isFirstLoad) {
+        recentAlerts.forEach(a => {
+          const aId = a.id || `${a.rule_name}_${a.first_seen}_${a.src_ip}`;
+          knownAlertIds.add(aId);
+          if ((a.severity || "").toLowerCase() === "critical" && !isCriticalBannerDismissed) {
+            showCriticalBanner(a);
+          }
+        });
+        isFirstLoad = false;
+        return;
+      }
+
+      let hasNewAlerts = false;
+      recentAlerts.forEach(a => {
+        const aId = a.id || `${a.rule_name}_${a.first_seen}_${a.src_ip}`;
+        if (!knownAlertIds.has(aId)) {
+          knownAlertIds.add(aId);
+          hasNewAlerts = true;
+          newAlertsSinceLoad++;
+
+          // 1. Toast
+          showToast(a);
+
+          // 2. Persistent critical banner
+          if ((a.severity || "").toLowerCase() === "critical" && !isCriticalBannerDismissed) {
+            showCriticalBanner(a);
+          }
+
+          // 3. Audio Synth Beep
+          playAlertBeep();
+
+          // 4. Desktop Notification
+          sendDesktopNotif(a);
+        }
+      });
+
+      if (hasNewAlerts) {
+        document.title = `(${newAlertsSinceLoad}) SIEM Alerts`;
+        const counterEl = document.getElementById("new-alert-counter");
+        if (counterEl) {
+          counterEl.textContent = `${newAlertsSinceLoad} new`;
+        }
       }
     }
 
@@ -516,11 +1012,14 @@
       isFetching = true;
       try {
         const queryParams = window.location.search || "";
-        const resp = await fetch("/api/dashboard-data" + queryParams);
+        const [dashResp] = await Promise.all([
+          fetch("/api/dashboard-data" + queryParams),
+          updatePipelineHealth()
+        ]);
 
-        if (!resp.ok) {
+        if (!dashResp.ok) {
           // While indices are being cleared or recreated (missing index, 404), show normal empty state, not an error
-          if (resp.status === 404) {
+          if (dashResp.status === 404) {
             const emptyData = {
               counts: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
               severity_over_time: [],
@@ -535,22 +1034,20 @@
             document.getElementById("update-timestamp").textContent = "Last updated: " + new Date().toLocaleTimeString();
             return;
           }
-          // Server / network error: keep last good data if one request fails
-          console.warn("Dashboard data request failed with status " + resp.status + "; keeping last good data.");
+          console.warn("Dashboard data request failed with status " + dashResp.status + "; keeping last good data.");
           return;
         }
 
-        const data = await resp.json();
+        const data = await dashResp.json();
         lastGoodData = data;
+        processAlertNotifications(data.recent_alerts);
         renderDashboard(data);
         const now = new Date();
         document.getElementById("update-timestamp").textContent = "Last updated: " + now.toLocaleTimeString();
       } catch (err) {
-        // Keep last good data if one request fails
         console.warn("Dashboard data fetch error (keeping last good data):", err);
       } finally {
         isFetching = false;
-        // Chained setTimeout: only schedule next request after current finishes, and only if tab is visible
         if (!document.hidden) {
           clearTimeout(pollTimeoutId);
           pollTimeoutId = setTimeout(fetchDashboardData, REFRESH_SECONDS * 1000);
@@ -777,7 +1274,7 @@
         </svg>`);
     }
 
-    // Panel 4: Recent Security Alerts (Newest 8)
+    // Panel 4: Recent Security Alerts (Newest 8, sorted by created_at)
     function renderRecentAlerts(alerts) {
       const container = document.getElementById("panel-recent-alerts");
       if (!alerts || alerts.length === 0) {
@@ -791,11 +1288,18 @@
         return;
       }
 
+      // Sort newest first by created_at (or first_seen)
+      const sorted = [...alerts].sort((a, b) => {
+        const ta = a.created_at || a.first_seen || "";
+        const tb = b.created_at || b.first_seen || "";
+        return tb.localeCompare(ta);
+      });
+
       let html = `<div class="alerts-list">`;
-      alerts.slice(0, 8).forEach(a => {
+      sorted.slice(0, 8).forEach(a => {
         const sev = (a.severity || "medium").toLowerCase();
         const badgeClass = `badge-${sev}`;
-        const timeShort = (a.first_seen || "").slice(11, 19) || (a.first_seen || "N/A");
+        const raisedAt = (a.created_at || a.first_seen || "").slice(11, 19) || "N/A";
 
         html += `
           <div class="alert-row">
@@ -806,7 +1310,7 @@
             </div>
             <div class="alert-meta">
               <span>${a.src_ip || ''}</span>
-              <span>${timeShort}</span>
+              <span title="Raised at: ${a.created_at || a.first_seen || ''}">Raised: ${raisedAt}</span>
             </div>
           </div>`;
       });
@@ -935,6 +1439,27 @@
             pollTimeoutId = null;
           }
           fetchDashboardData();
+        });
+      }
+
+      const soundBtn = document.getElementById("sound-toggle-btn");
+      if (soundBtn) {
+        soundBtn.addEventListener("click", toggleSound);
+      }
+
+      const notifBtn = document.getElementById("notif-toggle-btn");
+      if (notifBtn) {
+        notifBtn.addEventListener("click", toggleDesktopNotification);
+      }
+
+      const dismissBtn = document.getElementById("critical-banner-dismiss");
+      if (dismissBtn) {
+        dismissBtn.addEventListener("click", () => {
+          isCriticalBannerDismissed = true;
+          const banner = document.getElementById("critical-banner");
+          if (banner) {
+            banner.style.display = "none";
+          }
         });
       }
     });

@@ -579,9 +579,9 @@ objects.append({
                 "formBased": {
                     "layers": {
                         "layer_1": {
-                            "columnOrder": ["col_time", "col_rule", "col_sev", "col_user", "col_ip", "col_host", "col_mitre", "col_count"],
+                            "columnOrder": ["col_created", "col_rule", "col_sev", "col_user", "col_ip", "col_host", "col_mitre", "col_count"],
                             "columns": {
-                                "col_time": make_date_histogram_col("first_seen", "Timestamp", desc=True),
+                                "col_created": make_date_histogram_col("created_at", "Raised At", desc=True),
                                 "col_rule": make_terms_col("rule_name", "Rule Name", size=10, alphabetical=True),
                                 "col_sev": make_terms_col("severity", "Severity", size=5, alphabetical=True),
                                 "col_user": make_terms_col("user", "User", size=5, alphabetical=True),
@@ -601,7 +601,7 @@ objects.append({
                 "layerId": "layer_1",
                 "layerType": "data",
                 "columns": [
-                    {"columnId": "col_time", "isTransposed": False},
+                    {"columnId": "col_created", "isTransposed": False},
                     {"columnId": "col_rule", "isTransposed": False},
                     {"columnId": "col_sev", "isTransposed": False},
                     {"columnId": "col_user", "isTransposed": False},

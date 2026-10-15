@@ -102,14 +102,14 @@ def get_dashboard_analytics(
                 docs = list(es.indices_data.get(alerts_index, {}).values())
                 sev_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
                 time_buckets: Dict[str, Dict[str, int]] = {}
-                sorted_docs = sorted(docs, key=lambda x: str(x.get("first_seen", "")), reverse=True)
+                sorted_docs = sorted(docs, key=lambda x: str(x.get("created_at", x.get("first_seen", ""))), reverse=True)
 
                 for doc in docs:
                     sev = str(doc.get("severity", "")).lower()
                     if sev in sev_counts:
                         sev_counts[sev] += 1
 
-                    raw_ts = str(doc.get("first_seen", doc.get("created_at", "")))
+                    raw_ts = str(doc.get("created_at", doc.get("first_seen", "")))
                     bucket_key = raw_ts[:13].replace("T", " ") + ":00" if len(raw_ts) >= 13 else "Recent"
                     if bucket_key not in time_buckets:
                         time_buckets[bucket_key] = {"critical": 0, "high": 0, "medium": 0, "low": 0, "total": 0}
@@ -133,13 +133,15 @@ def get_dashboard_analytics(
                     h = d.get("host")
                     host_str = ", ".join(h) if isinstance(h, list) else str(h or "N/A")
                     recent_alerts.append({
+                        "id": str(d.get("_id", d.get("id", ""))),
                         "severity": str(d.get("severity", "medium")).lower(),
                         "rule_name": str(d.get("rule_name", "Unknown Alert")),
                         "user": str(d.get("user") or "N/A"),
                         "host": host_str,
                         "src_ip": str(d.get("src_ip") or d.get("source_ip") or "N/A"),
                         "mitre_technique": str(d.get("mitre_technique") or "N/A"),
-                        "first_seen": str(d.get("first_seen", "")).replace("T", " ")[:19]
+                        "first_seen": str(d.get("first_seen", "")).replace("T", " ")[:19],
+                        "created_at": str(d.get("created_at") or d.get("first_seen", "")).replace("T", " ")[:19]
                     })
                 result["recent_alerts"] = recent_alerts
 
@@ -200,7 +202,7 @@ def get_dashboard_analytics(
                 {"index": alerts_index, "ignore_unavailable": True},
                 {
                     "size": 8,
-                    "sort": [{"first_seen": {"order": "desc"}}],
+                    "sort": [{"created_at": {"order": "desc", "unmapped_type": "date"}}, {"first_seen": {"order": "desc", "unmapped_type": "date"}}],
                     "aggs": {
                         "severity_counts": {
                             "terms": {"field": "severity", "size": 10}
@@ -270,13 +272,15 @@ def get_dashboard_analytics(
                     h = src.get("host")
                     host_str = ", ".join(h) if isinstance(h, list) else str(h or "N/A")
                     recent_alerts.append({
+                        "id": str(hit.get("_id", "")),
                         "severity": str(src.get("severity", "medium")).lower(),
                         "rule_name": str(src.get("rule_name", "Unknown Alert")),
                         "user": str(src.get("user") or "N/A"),
                         "host": host_str,
                         "src_ip": str(src.get("src_ip") or src.get("source_ip") or "N/A"),
                         "mitre_technique": str(src.get("mitre_technique") or "N/A"),
-                        "first_seen": str(src.get("first_seen", "")).replace("T", " ")[:19]
+                        "first_seen": str(src.get("first_seen", "")).replace("T", " ")[:19],
+                        "created_at": str(src.get("created_at") or src.get("first_seen", "")).replace("T", " ")[:19]
                     })
                 result["recent_alerts"] = recent_alerts
 

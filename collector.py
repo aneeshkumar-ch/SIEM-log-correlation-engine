@@ -23,7 +23,9 @@ def detect_source_type_from_filename(filename: str) -> str:
     f = filename.lower()
     if any(k in f for k in ("win", "sysmon", "security")):
         return "windows_sysmon"
-    if any(k in f for k in ("linux", "audit", "auth", "sshd", "sudo")):
+    if any(k in f for k in ("auth", "sshd")):
+        return "linux_auth"
+    if any(k in f for k in ("linux", "audit", "sudo")):
         return "linux_auditd"
     if any(k in f for k in ("firewall", "fw", "net", "ufw", "iptables")):
         return "network_firewall"
@@ -60,6 +62,10 @@ def collect_file(
 
     # Bulk index into security-events with deterministic IDs
     indexed_count = bulk_index_events(es, events, config.INDEX_EVENTS)
+    try:
+        es.indices.refresh(index=config.INDEX_EVENTS)
+    except Exception:
+        pass
 
     return {
         "file_name": file_path.name,
@@ -79,8 +85,8 @@ def collect_incoming(incoming_dir: Path = config.INCOMING_DIR, es: Any = None) -
         es = get_es_client()
     initialize_indices(es)
 
-    processed_dir = incoming_dir / "processed"
-    processed_dir.mkdir(exist_ok=True)
+    archive_dir = incoming_dir / "archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
     for file_path in incoming_dir.iterdir():
@@ -92,16 +98,22 @@ def collect_incoming(incoming_dir: Path = config.INCOMING_DIR, es: Any = None) -
         try:
             res = collect_file(file_path, es=es)
             results.append(res)
-            # Move to processed subdirectory to prevent reprocessing
-            target_path = processed_dir / file_path.name
+            # Move to archive subdirectory to prevent reprocessing
+            target_path = archive_dir / file_path.name
             shutil.move(str(file_path), str(target_path))
-            logger.info("Collector processed and archived %s", file_path.name)
+            logger.info("Collector processed and archived %s into %s", file_path.name, archive_dir.name)
         except Exception as e:
             logger.error("Error processing %s: %s", file_path.name, e)
             results.append({
                 "file_name": file_path.name,
                 "error": str(e)
             })
+
+    if results:
+        try:
+            es.indices.refresh(index=config.INDEX_EVENTS)
+        except Exception:
+            pass
 
     return results
 
