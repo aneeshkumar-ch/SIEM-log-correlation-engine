@@ -14,6 +14,7 @@ import time
 import datetime
 import subprocess
 from pathlib import Path
+from typing import List, Dict, Any, Optional
 import requests
 
 import config
@@ -90,11 +91,19 @@ def setup_temp_indices(es):
     print(f"[+] Populated temporary indices: {TEMP_EVENTS_IDX} ({c_ev} events), {TEMP_ALERTS_IDX} ({c_al} alerts).")
 
 
-def setup_temp_kibana_objects():
-    print("\n[*] Creating temporary Kibana saved objects pointing to temporary indices...")
-    ndjson_file = Path(__file__).resolve().parent / "soc_triage_board.ndjson"
+def generate_temp_saved_objects(
+    ndjson_file: Path,
+    temp_events_idx: str = TEMP_EVENTS_IDX,
+    temp_alerts_idx: str = TEMP_ALERTS_IDX
+) -> List[Dict[str, Any]]:
+    """
+    Transforms Kibana saved objects from ndjson into temporary copies.
+    Guarantees:
+    1. Every temporary object has an ID strictly prefixed with 'temp-'.
+    2. No temporary copy can share an ID with any original real object.
+    3. References are remapped to point strictly to 'temp-' targets.
+    """
     temp_objects = []
-
     with open(ndjson_file, "r", encoding="utf-8") as f:
         for line in f:
             line_str = line.strip()
@@ -107,10 +116,12 @@ def setup_temp_kibana_objects():
             if obj_type == "index-pattern":
                 if orig_id == "security-alerts-dataview":
                     obj["id"] = "temp-alerts-dataview"
-                    obj["attributes"]["title"] = TEMP_ALERTS_IDX
+                    obj["attributes"]["title"] = temp_alerts_idx
                 elif orig_id == "security-events-dataview":
                     obj["id"] = "temp-events-dataview"
-                    obj["attributes"]["title"] = TEMP_EVENTS_IDX
+                    obj["attributes"]["title"] = temp_events_idx
+                else:
+                    obj["id"] = "temp-" + orig_id
             elif obj_type in ("lens", "search"):
                 obj["id"] = "temp-" + orig_id
                 for r in obj.get("references", []):
@@ -118,13 +129,26 @@ def setup_temp_kibana_objects():
                         r["id"] = "temp-alerts-dataview"
                     elif r["id"] == "security-events-dataview":
                         r["id"] = "temp-events-dataview"
+                    elif not r["id"].startswith("temp-"):
+                        r["id"] = "temp-" + r["id"]
             elif obj_type == "dashboard":
                 obj["id"] = "temp-" + orig_id
                 for r in obj.get("references", []):
-                    if r["type"] in ("lens", "search"):
+                    if r["type"] in ("lens", "search") and not r["id"].startswith("temp-"):
                         r["id"] = "temp-" + r["id"]
 
+            # Strict safeguards: temporary ID must begin with 'temp-' and cannot equal original ID
+            assert obj["id"].startswith("temp-"), f"Temporary object ID must start with 'temp-': {obj['id']}"
+            assert obj["id"] != orig_id, f"Temporary object ID cannot share original ID: {obj['id']}"
             temp_objects.append(obj)
+
+    return temp_objects
+
+
+def setup_temp_kibana_objects():
+    print("\n[*] Creating temporary Kibana saved objects pointing to temporary indices...")
+    ndjson_file = Path(__file__).resolve().parent / "soc_triage_board.ndjson"
+    temp_objects = generate_temp_saved_objects(ndjson_file)
 
     # Import temporary saved objects
     ndjson_payload = "\n".join(json.dumps(o) for o in temp_objects) + "\n"
@@ -409,20 +433,49 @@ main().catch(err => {{
             temp_js_path.unlink()
 
 
+def delete_temporary_saved_objects(
+    kibana_url: str,
+    temp_object_ids: List[str],
+    headers: Optional[Dict[str, str]] = None
+) -> List[str]:
+    """
+    Safely deletes ONLY Kibana saved objects whose IDs strictly begin with 'temp-'.
+    Rejects any ID that does not start with 'temp-'.
+    Never deletes by type or title alone, and never targets production objects.
+    Returns list of deleted object references in '<type>/<id>' format.
+    """
+    if headers is None:
+        headers = {"kbn-xsrf": "true"}
+
+    deleted = []
+    for obj_id in temp_object_ids:
+        # Strict validation: obj_id MUST be a string strictly starting with 'temp-'
+        if not isinstance(obj_id, str) or not obj_id.startswith("temp-"):
+            print(f"  [SAFETY GUARD] Refusing to delete non-temp object ID: {obj_id!r}")
+            continue
+
+        for obj_type in ["dashboard", "lens", "index-pattern", "search"]:
+            try:
+                resp = requests.delete(
+                    f"{kibana_url}/api/saved_objects/{obj_type}/{obj_id}",
+                    headers=headers,
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    deleted.append(f"{obj_type}/{obj_id}")
+            except Exception:
+                pass
+    return deleted
+
+
 def cleanup(es, temp_object_ids):
     print("\n" + "=" * 75)
     print("  CLEANUP TEMPORARY OBJECTS & INDICES")
     print("=" * 75)
 
-    # 1. Delete temp Kibana saved objects
-    headers = {"kbn-xsrf": "true"}
-    for obj_id in temp_object_ids:
-        for obj_type in ["dashboard", "lens", "index-pattern", "search"]:
-            try:
-                requests.delete(f"{KIBANA_URL}/api/saved_objects/{obj_type}/{obj_id}", headers=headers, timeout=5)
-            except Exception:
-                pass
-    print(f"[+] Cleaned up temporary Kibana saved objects.")
+    # 1. Delete temp Kibana saved objects (strictly enforced 'temp-' prefix)
+    deleted_objs = delete_temporary_saved_objects(KIBANA_URL, temp_object_ids)
+    print(f"[+] Cleaned up {len(deleted_objs)} temporary Kibana saved object(s) (all validated with 'temp-' prefix).")
 
     # 2. Delete temporary indices
     es.indices.delete(index=[TEMP_EVENTS_IDX, TEMP_ALERTS_IDX], ignore_unavailable=True)
