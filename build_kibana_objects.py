@@ -1131,6 +1131,10 @@ objects.append({
         "timeRestore": True,
         "timeFrom": "now-7d",
         "timeTo": "now+1d",
+        "refreshInterval": {
+            "pause": False,
+            "value": 2000
+        },
         "optionsJSON": json.dumps({"useMargins": True, "hidePanelTitles": False}),
         "panelsJSON": json.dumps([
             # Row 1: 4 Metric cards (y: 0, h: 6, w: 12 each)
@@ -1184,6 +1188,10 @@ objects.append({
         "timeRestore": True,
         "timeFrom": "now-7d",
         "timeTo": "now+1d",
+        "refreshInterval": {
+            "pause": False,
+            "value": 2000
+        },
         "optionsJSON": json.dumps({"useMargins": True, "hidePanelTitles": False}),
         "panelsJSON": json.dumps([
             {"version": "8.13.0", "panelIndex": "panel-1", "gridData": {"x": 0, "y": 0, "w": 24, "h": 14, "i": "panel-1"}, "panelRefName": "panel_panel-1"},
@@ -1220,6 +1228,10 @@ objects.append({
         "timeRestore": True,
         "timeFrom": "now-7d",
         "timeTo": "now+1d",
+        "refreshInterval": {
+            "pause": False,
+            "value": 2000
+        },
         "optionsJSON": json.dumps({"useMargins": True, "hidePanelTitles": False}),
         "panelsJSON": json.dumps([
             {"version": "8.13.0", "panelIndex": "panel-1", "gridData": {"x": 0, "y": 0, "w": 48, "h": 15, "i": "panel-1"}, "panelRefName": "panel_panel-1"},

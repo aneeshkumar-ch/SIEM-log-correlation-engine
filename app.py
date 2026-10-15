@@ -196,10 +196,18 @@ async def handle_upload(
 
     # 6. Bulk index into normalized-events with deterministic IDs
     indexed_count = bulk_index_events(es, events, config.INDEX_EVENTS)
+    try:
+        es.indices.refresh(index=config.INDEX_EVENTS)
+    except Exception:
+        pass
     logger.info("Successfully indexed %d normalized events into %s", indexed_count, config.INDEX_EVENTS)
 
     # 7. Run correlation rules
     new_alerts = correlate.run_correlation(es)
+    try:
+        es.indices.refresh(index=config.INDEX_ALERTS)
+    except Exception:
+        pass
 
     state = get_pipeline_state(es)
     upload_summary = {
@@ -225,6 +233,10 @@ async def handle_upload(
 async def trigger_correlation(request: Request):
     es = get_es_client()
     alerts = correlate.run_correlation(es)
+    try:
+        es.indices.refresh(index=config.INDEX_ALERTS)
+    except Exception:
+        pass
     state = get_pipeline_state(es)
     return templates.TemplateResponse(
         request=request,
@@ -246,6 +258,11 @@ async def clear_pipeline_data(request: Request):
         if es.indices.exists(index=config.INDEX_ALERTS):
             es.indices.delete(index=config.INDEX_ALERTS, ignore_unavailable=True)
         initialize_indices(es)
+        try:
+            es.indices.refresh(index=config.INDEX_EVENTS)
+            es.indices.refresh(index=config.INDEX_ALERTS)
+        except Exception:
+            pass
         msg = "Pipeline data successfully cleared. Both indices reset."
         msg_type = "success"
     except Exception as e:

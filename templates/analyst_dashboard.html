@@ -389,7 +389,7 @@
         <span id="update-timestamp">Last updated: Just now</span>
         <div class="refresh-pill" id="manual-refresh-btn" title="Refresh dashboard data">
           <span class="pulse-dot"></span>
-          <span>Live (30s)</span>
+          <span>Live, 2 s</span>
         </div>
       </div>
     </header>
@@ -500,27 +500,81 @@
       "#C9CCF2"
     ];
 
+    const REFRESH_SECONDS = 2;
+    let pollTimeoutId = null;
+    let isFetching = false;
+    let lastGoodData = null;
+
+    function setContentInPlace(container, newHtml) {
+      if (container && container.innerHTML !== newHtml) {
+        container.innerHTML = newHtml;
+      }
+    }
+
     async function fetchDashboardData() {
+      if (isFetching) return;
+      isFetching = true;
       try {
         const queryParams = window.location.search || "";
         const resp = await fetch("/api/dashboard-data" + queryParams);
-        if (!resp.ok) throw new Error("Network error fetching dashboard data");
+
+        if (!resp.ok) {
+          // While indices are being cleared or recreated (missing index, 404), show normal empty state, not an error
+          if (resp.status === 404) {
+            const emptyData = {
+              counts: { total: 0, critical: 0, high: 0, medium: 0, low: 0 },
+              severity_over_time: [],
+              event_categories: [],
+              top_hosts: [],
+              recent_alerts: [],
+              log_sources: [],
+              has_data: false
+            };
+            lastGoodData = emptyData;
+            renderDashboard(emptyData);
+            document.getElementById("update-timestamp").textContent = "Last updated: " + new Date().toLocaleTimeString();
+            return;
+          }
+          // Server / network error: keep last good data if one request fails
+          console.warn("Dashboard data request failed with status " + resp.status + "; keeping last good data.");
+          return;
+        }
+
         const data = await resp.json();
+        lastGoodData = data;
         renderDashboard(data);
         const now = new Date();
         document.getElementById("update-timestamp").textContent = "Last updated: " + now.toLocaleTimeString();
       } catch (err) {
-        console.error("Dashboard data fetch error:", err);
+        // Keep last good data if one request fails
+        console.warn("Dashboard data fetch error (keeping last good data):", err);
+      } finally {
+        isFetching = false;
+        // Chained setTimeout: only schedule next request after current finishes, and only if tab is visible
+        if (!document.hidden) {
+          clearTimeout(pollTimeoutId);
+          pollTimeoutId = setTimeout(fetchDashboardData, REFRESH_SECONDS * 1000);
+        }
       }
     }
 
     function renderDashboard(data) {
-      // 1. Update Count Cards
+      // 1. Update Count Cards in place
       const counts = data.counts || { total: 0, critical: 0, high: 0, medium: 0 };
-      document.getElementById("card-val-total").textContent = counts.total || 0;
-      document.getElementById("card-val-critical").textContent = counts.critical || 0;
-      document.getElementById("card-val-high").textContent = counts.high || 0;
-      document.getElementById("card-val-medium").textContent = counts.medium || 0;
+      const elTotal = document.getElementById("card-val-total");
+      const elCrit = document.getElementById("card-val-critical");
+      const elHigh = document.getElementById("card-val-high");
+      const elMed = document.getElementById("card-val-medium");
+
+      const tVal = String(counts.total || 0);
+      const cVal = String(counts.critical || 0);
+      const hVal = String(counts.high || 0);
+      const mVal = String(counts.medium || 0);
+
+      if (elTotal && elTotal.textContent !== tVal) elTotal.textContent = tVal;
+      if (elCrit && elCrit.textContent !== cVal) elCrit.textContent = cVal;
+      if (elHigh && elHigh.textContent !== hVal) elHigh.textContent = hVal;
+      if (elMed && elMed.textContent !== mVal) elMed.textContent = mVal;
 
       // 2. Render Panels
       renderSeverityOverTime(data.severity_over_time);
@@ -534,13 +588,13 @@
     function renderSeverityOverTime(buckets) {
       const container = document.getElementById("panel-severity-over-time");
       if (!buckets || buckets.length === 0) {
-        container.innerHTML = `
+        setContentInPlace(container, `
           <div class="empty-state">
             <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <div>No alerts recorded in time range</div>
-          </div>`;
+          </div>`);
         return;
       }
 
@@ -578,31 +632,31 @@
         });
       });
 
-      container.innerHTML = `
+      setContentInPlace(container, `
         <svg class="chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">
           <!-- Baseline -->
           <line x1="10" y1="${chartBottom}" x2="${svgWidth - 10}" y2="${chartBottom}" stroke="#E5E7EB" stroke-width="1.5" />
           ${rects}
-        </svg>`;
+        </svg>`);
     }
 
     // Panel 2: Pie Chart with percentage labels on both sides
     function renderEventCategories(categories) {
       const container = document.getElementById("panel-event-categories");
       if (!categories || categories.length === 0) {
-        container.innerHTML = `
+        setContentInPlace(container, `
           <div class="empty-state">
             <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
             </svg>
             <div>No event categories found</div>
-          </div>`;
+          </div>`);
         return;
       }
 
       const total = categories.reduce((sum, c) => sum + (c.count || 0), 0);
       if (total === 0) {
-        container.innerHTML = `<div class="empty-state">No events telemetry</div>`;
+        setContentInPlace(container, `<div class="empty-state">No events telemetry</div>`);
         return;
       }
 
@@ -672,24 +726,24 @@
 
       const labels = layoutLabels(leftLabels, false) + layoutLabels(rightLabels, true);
 
-      container.innerHTML = `
+      setContentInPlace(container, `
         <svg class="chart-svg" viewBox="0 0 320 170">
           ${paths}
           ${labels}
-        </svg>`;
+        </svg>`);
     }
 
     // Panel 3: Horizontal Bars for Top Hosts
     function renderTopHosts(hosts) {
       const container = document.getElementById("panel-top-hosts");
       if (!hosts || hosts.length === 0) {
-        container.innerHTML = `
+        setContentInPlace(container, `
           <div class="empty-state">
             <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
             </svg>
             <div>No host telemetry recorded</div>
-          </div>`;
+          </div>`);
         return;
       }
 
@@ -717,23 +771,23 @@
           </g>`;
       });
 
-      container.innerHTML = `
+      setContentInPlace(container, `
         <svg class="chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">
           ${rows}
-        </svg>`;
+        </svg>`);
     }
 
     // Panel 4: Recent Security Alerts (Newest 8)
     function renderRecentAlerts(alerts) {
       const container = document.getElementById("panel-recent-alerts");
       if (!alerts || alerts.length === 0) {
-        container.innerHTML = `
+        setContentInPlace(container, `
           <div class="empty-state">
             <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <div>No recent security alerts detected</div>
-          </div>`;
+          </div>`);
         return;
       }
 
@@ -757,20 +811,20 @@
           </div>`;
       });
       html += `</div>`;
-      container.innerHTML = html;
+      setContentInPlace(container, html);
     }
 
     // Panel 5: Events by Log Source (Radar Chart)
     function renderLogSourcesRadar(sources) {
       const container = document.getElementById("panel-log-sources");
       if (!sources || sources.length === 0) {
-        container.innerHTML = `
+        setContentInPlace(container, `
           <div class="empty-state">
             <svg class="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <div>No log source telemetry</div>
-          </div>`;
+          </div>`);
         return;
       }
 
@@ -845,20 +899,44 @@
           return `<circle cx="${px}" cy="${py}" r="3" fill="#E8483B" />`;
         }).join('')}`;
 
-      container.innerHTML = `
+      setContentInPlace(container, `
         <svg class="chart-svg" viewBox="0 0 ${svgWidth} ${svgHeight}">
           ${rings}
           ${axisLines}
           ${polygonSvg}
           ${labels}
-        </svg>`;
+        </svg>`);
     }
 
-    // Initialize and Auto-refresh every 30 seconds
+    // Pause polling while the browser tab is hidden and refresh immediately when it becomes visible
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        if (pollTimeoutId) {
+          clearTimeout(pollTimeoutId);
+          pollTimeoutId = null;
+        }
+      } else {
+        if (pollTimeoutId) {
+          clearTimeout(pollTimeoutId);
+          pollTimeoutId = null;
+        }
+        fetchDashboardData();
+      }
+    });
+
+    // Start polling on load
     document.addEventListener("DOMContentLoaded", () => {
       fetchDashboardData();
-      setInterval(fetchDashboardData, 30000);
-      document.getElementById("manual-refresh-btn").addEventListener("click", fetchDashboardData);
+      const manualBtn = document.getElementById("manual-refresh-btn");
+      if (manualBtn) {
+        manualBtn.addEventListener("click", () => {
+          if (pollTimeoutId) {
+            clearTimeout(pollTimeoutId);
+            pollTimeoutId = null;
+          }
+          fetchDashboardData();
+        });
+      }
     });
   </script>
 </body>

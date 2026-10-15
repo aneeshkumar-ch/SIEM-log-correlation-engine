@@ -307,11 +307,12 @@ def sanitize_doc_ips(doc: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def initialize_indices(es: Any, events_index: str = config.INDEX_EVENTS, alerts_index: str = config.INDEX_ALERTS) -> None:
-    """Ensure security-events and security-alerts indices exist with mappings."""
+    """Ensure security-events and security-alerts indices exist with mappings and are refreshed."""
     try:
         if not es.indices.exists(index=events_index):
             es.indices.create(index=events_index, mappings=EVENTS_MAPPING)
             logger.info("Created index %s", events_index)
+        es.indices.refresh(index=events_index)
     except Exception as e:
         logger.warning("Could not create/verify index %s: %s", events_index, e)
 
@@ -319,6 +320,7 @@ def initialize_indices(es: Any, events_index: str = config.INDEX_EVENTS, alerts_
         if not es.indices.exists(index=alerts_index):
             es.indices.create(index=alerts_index, mappings=ALERTS_MAPPING)
             logger.info("Created index %s", alerts_index)
+        es.indices.refresh(index=alerts_index)
     except Exception as e:
         logger.warning("Could not create/verify index %s: %s", alerts_index, e)
 

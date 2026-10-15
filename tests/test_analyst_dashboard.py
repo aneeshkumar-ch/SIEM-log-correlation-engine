@@ -129,3 +129,60 @@ def test_api_dashboard_data_populated(mock_es_env):
     assert data["colors"]["count_cards"]["high"]["bg"] == dashboard_service.COUNT_CARD_HIGH_BG
     assert data["colors"]["count_cards"]["medium"]["bg"] == dashboard_service.COUNT_CARD_MEDIUM_BG
     assert data["colors"]["tag"] == dashboard_service.TAG_COLOR
+
+
+def test_dashboard_polling_logic_and_live_indicator():
+    client = TestClient(app)
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    text = response.text
+
+    # 1. Constant REFRESH_SECONDS = 2
+    assert "const REFRESH_SECONDS = 2;" in text
+
+    # 2. Live label "Live, 2 s"
+    assert "Live, 2 s" in text
+
+    # 3. Chained setTimeout
+    assert "pollTimeoutId = setTimeout(fetchDashboardData, REFRESH_SECONDS * 1000);" in text
+
+    # 4. Visibilitychange handler to pause when hidden and resume immediately
+    assert "visibilitychange" in text
+    assert "document.hidden" in text
+
+    # 5. In-place content updates (no flicker/blank frame)
+    assert "setContentInPlace" in text
+
+    # 6. Error handling retaining last good data
+    assert "lastGoodData" in text
+
+
+def test_api_dashboard_data_missing_index_returns_empty_state(mock_es_env):
+    """When indices are being cleared or recreated (404/missing index), returns clean empty state."""
+    client = TestClient(app)
+    response = client.get("/api/dashboard-data?events_index=missing-events-idx&alerts_index=missing-alerts-idx")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["has_data"] is False
+    assert data["counts"]["total"] == 0
+    assert data["recent_alerts"] == []
+
+
+def test_msearch_efficient_aggregation_called(monkeypatch):
+    """Verifies that real Elasticsearch path executes one single msearch request."""
+    from unittest.mock import MagicMock
+    mock_real_es = MagicMock()
+    mock_real_es.msearch.return_value = {
+        "responses": [
+            {"status": 200, "hits": {"total": {"value": 0}, "hits": []}, "aggregations": {}},
+            {"status": 200, "hits": {"total": {"value": 0}, "hits": []}, "aggregations": {}}
+        ]
+    }
+    monkeypatch.setattr(config, "USE_MOCK_ES", False)
+    res = dashboard_service.get_dashboard_analytics(mock_real_es, "test-events", "test-alerts")
+    assert res["has_data"] is False
+    mock_real_es.msearch.assert_called_once()
+    searches_arg = mock_real_es.msearch.call_args[1]["searches"]
+    assert len(searches_arg) == 4  # 2 header/body pairs in one single request
+    assert searches_arg[0]["ignore_unavailable"] is True
+    assert searches_arg[2]["ignore_unavailable"] is True
