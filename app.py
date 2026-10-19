@@ -7,9 +7,12 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 
+import httpx
 from fastapi import FastAPI, Request, File, Form, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
+from starlette.responses import StreamingResponse
+from starlette.background import BackgroundTask
 
 import config
 import normalizer
@@ -26,10 +29,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan handler to start and stop background collector and correlation scheduler."""
+    """Lifespan handler to start and stop background collector, correlation scheduler, and Kibana proxy client."""
+    app.state.proxy_client = httpx.AsyncClient(
+        base_url=config.KIBANA_HOST,
+        timeout=httpx.Timeout(60.0, connect=10.0),
+        follow_redirects=False,
+        limits=httpx.Limits(max_keepalive_connections=20, max_connections=50)
+    )
     await pipeline_manager.start()
-    yield
-    await pipeline_manager.stop()
+    try:
+        yield
+    finally:
+        await pipeline_manager.stop()
+        if hasattr(app.state, "proxy_client"):
+            await app.state.proxy_client.aclose()
 
 
 app = FastAPI(title="SIEM Log Correlation Engine - BCSSL Lab 07", lifespan=lifespan)
@@ -104,7 +117,7 @@ def get_pipeline_state(es: Any) -> Dict[str, Any]:
         "sev_counts": sev_counts,
         "top_ips": top_ips,
         "suspicious_hosts": suspicious_hosts,
-        "kibana_url": config.KIBANA_HOST
+        "kibana_url": config.KIBANA_EXTERNAL_URL
     }
 
 
@@ -305,7 +318,7 @@ async def api_status():
         "mode": state["es_mode"],
         "events_count": state["events_count"],
         "alerts_count": state["alerts_count"],
-        "kibana_url": state["kibana_url"]
+        "kibana_url": state.get("kibana_url") or config.KIBANA_HOST
     }
 
 
@@ -347,26 +360,30 @@ KIBANA_REFRESH_G = "_g=(refreshInterval:(pause:!f,value:2000),time:(from:now-7d,
 @app.get("/open/soc")
 async def open_soc_dashboard():
     """Redirects to Kibana SOC Triage Board with forced 2s auto-refresh global state."""
-    return RedirectResponse(f"{config.KIBANA_HOST}/app/dashboards#/view/soc-triage-board-dashboard?{KIBANA_REFRESH_G}")
+    base = config.KIBANA_EXTERNAL_URL
+    return RedirectResponse(f"{base}/app/dashboards#/view/soc-triage-board-dashboard?{KIBANA_REFRESH_G}")
 
 
 @app.get("/open/alerts")
 async def open_alerts_dashboard():
     """Redirects to Kibana Alerts Dashboard with forced 2s auto-refresh global state."""
-    return RedirectResponse(f"{config.KIBANA_HOST}/app/dashboards#/view/alerts-dashboard?{KIBANA_REFRESH_G}")
+    base = config.KIBANA_EXTERNAL_URL
+    return RedirectResponse(f"{base}/app/dashboards#/view/alerts-dashboard?{KIBANA_REFRESH_G}")
 
 
 @app.get("/open/timeline")
 async def open_timeline_dashboard():
     """Redirects to Kibana Timeline Analysis Dashboard with forced 2s auto-refresh global state."""
-    return RedirectResponse(f"{config.KIBANA_HOST}/app/dashboards#/view/timeline-analysis-dashboard?{KIBANA_REFRESH_G}")
+    base = config.KIBANA_EXTERNAL_URL
+    return RedirectResponse(f"{base}/app/dashboards#/view/timeline-analysis-dashboard?{KIBANA_REFRESH_G}")
 
 
 @app.get("/open/discover")
 @app.get("/open/events")
 async def open_discover_search():
     """Redirects to Kibana Discover Events search with forced 2s auto-refresh global state."""
-    return RedirectResponse(f"{config.KIBANA_HOST}/app/discover#/view/events-search?{KIBANA_REFRESH_G}")
+    base = config.KIBANA_EXTERNAL_URL
+    return RedirectResponse(f"{base}/app/discover#/view/events-search?{KIBANA_REFRESH_G}")
 
 
 @app.get("/investigation", response_class=HTMLResponse)
@@ -388,7 +405,7 @@ async def get_investigation(
         request=request,
         name="investigation.html",
         context={
-            "kibana_url": config.KIBANA_HOST,
+            "kibana_url": config.KIBANA_EXTERNAL_URL,
             "current_scenario": scenario,
             "saved_findings": saved,
             "flash_message": flash,
@@ -430,7 +447,7 @@ async def save_investigation(
         request=request,
         name="investigation.html",
         context={
-            "kibana_url": config.KIBANA_HOST,
+            "kibana_url": config.KIBANA_EXTERNAL_URL,
             "current_scenario": scenario_key,
             "saved_findings": findings_data,
             "flash_message": f"Findings for {scenario_key.replace('_', ' ').title()} successfully recorded to {findings_file.name}.",
@@ -525,6 +542,95 @@ async def generate_training_dataset(request: Request):
             **state
         }
     )
+
+
+
+@app.get("/kibana")
+@app.get("/kibana/")
+async def open_kibana_root():
+    """Redirect /kibana and /kibana/ to the SOC Triage Board."""
+    return RedirectResponse("/open/soc")
+
+
+@app.api_route("/kibana/{subpath:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def open_kibana_subpath(request: Request, subpath: str):
+    """Strip /kibana prefix and redirect to root-relative path."""
+    clean_sub = subpath.strip("/")
+    if not clean_sub:
+        return RedirectResponse("/open/soc")
+    query_str = f"?{request.url.query}" if request.url.query else ""
+    return RedirectResponse(f"/{clean_sub}{query_str}")
+
+
+HOP_BY_HOP_HEADERS = {
+    "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+    "te", "trailers", "transfer-encoding", "upgrade"
+}
+
+
+async def forward_to_kibana(request: Request, path: str):
+    target_path = "/" + path
+    if request.url.query:
+        target_path += "?" + request.url.query
+
+    req_headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in HOP_BY_HOP_HEADERS and k.lower() != "host"
+    }
+    req_headers["host"] = "127.0.0.1:5601"
+    if "kbn-xsrf" not in req_headers:
+        req_headers["kbn-xsrf"] = "true"
+
+    body = await request.body()
+
+    client = getattr(request.app.state, "proxy_client", None)
+    should_close = False
+    if client is None or client.is_closed:
+        client = httpx.AsyncClient(base_url=config.KIBANA_HOST, timeout=60.0, follow_redirects=False)
+        should_close = True
+
+    try:
+        req = client.build_request(method=request.method, url=target_path, headers=req_headers, content=body)
+        resp = await client.send(req, stream=True)
+    except httpx.ConnectError:
+        if should_close:
+            await client.aclose()
+        return Response(content="Kibana is unreachable at 127.0.0.1:5601", status_code=503)
+    except Exception as e:
+        if should_close:
+            await client.aclose()
+        logger.warning("Error proxying request to Kibana at %s: %s", target_path, e)
+        return Response(content=f"Kibana Proxy Error: {e}", status_code=502)
+
+    res_headers = {}
+    for k, v in resp.headers.items():
+        if k.lower() not in HOP_BY_HOP_HEADERS and k.lower() not in ("content-length", "content-encoding"):
+            res_headers[k] = v
+
+    if "location" in res_headers and res_headers["location"].startswith(config.KIBANA_HOST):
+        res_headers["location"] = res_headers["location"][len(config.KIBANA_HOST):] or "/"
+
+    async def close_resources():
+        await resp.aclose()
+        if should_close:
+            await client.aclose()
+
+    if resp.status_code in (204, 304):
+        await close_resources()
+        return Response(status_code=resp.status_code, headers=res_headers)
+
+    return StreamingResponse(
+        resp.aiter_bytes(),
+        status_code=resp.status_code,
+        headers=res_headers,
+        background=BackgroundTask(close_resources)
+    )
+
+
+@app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+async def kibana_proxy_catchall(request: Request, path: str):
+    """Fallback reverse proxy forwarding all non-FastAPI paths to Kibana."""
+    return await forward_to_kibana(request, path)
 
 
 if __name__ == "__main__":

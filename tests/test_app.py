@@ -155,3 +155,43 @@ def test_generate_samples_route():
     status = client.get("/api/status").json()
     assert status["events_count"] > 0
     assert status["alerts_count"] > 0
+
+
+def test_kibana_routes():
+    client = TestClient(app)
+    # /kibana and /kibana/ should redirect to /open/soc
+    res1 = client.get("/kibana", follow_redirects=False)
+    assert res1.status_code in (302, 307)
+    assert res1.headers["location"] == "/open/soc"
+
+    res2 = client.get("/kibana/", follow_redirects=False)
+    assert res2.status_code in (302, 307)
+    assert res2.headers["location"] == "/open/soc"
+
+    # /kibana/app/dashboards should redirect to /app/dashboards
+    res3 = client.get("/kibana/app/dashboards", follow_redirects=False)
+    assert res3.status_code in (302, 307)
+    assert res3.headers["location"] == "/app/dashboards"
+
+
+def test_open_routes():
+    client = TestClient(app)
+    res_soc = client.get("/open/soc", follow_redirects=False)
+    assert res_soc.status_code in (302, 307)
+    assert "soc-triage-board-dashboard" in res_soc.headers["location"]
+
+    res_alt = client.get("/open/alerts", follow_redirects=False)
+    assert res_alt.status_code in (302, 307)
+    assert "alerts-dashboard" in res_alt.headers["location"]
+
+    res_time = client.get("/open/timeline", follow_redirects=False)
+    assert res_time.status_code in (302, 307)
+    assert "timeline-analysis-dashboard" in res_time.headers["location"]
+
+    res_disc = client.get("/open/discover", follow_redirects=False)
+    assert res_disc.status_code in (302, 307)
+    assert "events-search" in res_disc.headers["location"]
+
+    res_events = client.get("/open/events", follow_redirects=False)
+    assert res_events.status_code in (302, 307)
+    assert "events-search" in res_events.headers["location"]

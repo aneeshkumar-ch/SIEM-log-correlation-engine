@@ -18,6 +18,7 @@ INVESTIGATIONS_DIR.mkdir(exist_ok=True)
 # Service URLs (Bind localhost only)
 ES_HOST = os.getenv("ES_HOST", "http://127.0.0.1:9200")
 KIBANA_HOST = os.getenv("KIBANA_HOST", "http://127.0.0.1:5601")
+KIBANA_EXTERNAL_URL = os.getenv("KIBANA_EXTERNAL_URL", "")
 
 # Elasticsearch Indices (Migrated to security-events)
 INDEX_EVENTS = os.getenv("INDEX_EVENTS", "security-events")
