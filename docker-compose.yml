@@ -1,6 +1,26 @@
 version: '3.8'
 
 services:
+  siem-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aneesh-siem-engine
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - ES_HOST=http://127.0.0.1:9200
+      - KIBANA_HOST=http://127.0.0.1:5601
+      - COLLECTOR_POLL_SECONDS=2
+      - CORRELATION_INTERVAL_SECONDS=10
+      - ENABLE_COLLECTOR=true
+      - ENABLE_SCHEDULER=true
+    volumes:
+      - ./incoming:/app/incoming
+      - ./uploads:/app/uploads
+      - ./investigations:/app/investigations
+      - ./sample_logs:/app/sample_logs
+
   es:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
     container_name: es
