@@ -10,19 +10,27 @@ import json
 import random
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 import config
 
 
-def generate_sample_logs(output_dir: Path = config.SAMPLE_LOGS_DIR, seed: int = 42) -> Dict[str, str]:
+def generate_sample_logs(
+    output_dir: Path = config.SAMPLE_LOGS_DIR,
+    seed: int = 42,
+    base_time: Optional[datetime] = None
+) -> Dict[str, str]:
     """Generates synthetic reproducible training log datasets for Windows, Linux, and Network.
     Returns mapping of log type to absolute file path.
     """
     rng = random.Random(seed)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    base_time = datetime(2026, 10, 13, 10, 0, 0, tzinfo=timezone.utc)
+    if base_time is None:
+        # Default to relative time anchored ~2 hours ago, spreading events over the last ~2 hours.
+        # Scenarios span a total of 36 minutes, keeping all events within the last 2-3 hours and well within 24 hours.
+        now = datetime.now(timezone.utc)
+        base_time = now - timedelta(hours=2)
 
     # -------------------------------------------------------------------------
     # 1. Windows Sysmon & Security Samples (JSONL)

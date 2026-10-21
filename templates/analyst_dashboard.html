@@ -628,7 +628,7 @@
         </div>
       </div>
       <div class="header-controls">
-        <span id="update-timestamp">Last updated: Just now</span>
+        <span id="update-timestamp" title="UTC: Just now">Last updated: Just now</span>
         <div class="refresh-pill" id="manual-refresh-btn" title="Refresh dashboard data">
           <span class="pulse-dot"></span>
           <span>Live, 2 s</span>
@@ -762,6 +762,24 @@
       }
     }
 
+    function formatDateTimeWithTz(dtOrIso) {
+      if (!dtOrIso) return { local: "N/A", utc: "N/A" };
+      let s = dtOrIso;
+      if (typeof s === "string" && !s.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(s)) {
+        s = s + "Z";
+      }
+      const d = (typeof s === "string") ? new Date(s) : s;
+      if (isNaN(d.getTime())) return { local: "N/A", utc: "N/A" };
+      const localStr = d.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZoneName: "short"
+      });
+      const utcStr = d.toISOString().replace("T", " ").slice(0, 19) + " UTC";
+      return { local: localStr, utc: utcStr };
+    }
+
     function formatTimeAgo(isoString) {
       if (!isoString) return "0s ago";
       const dt = new Date(isoString);
@@ -795,15 +813,18 @@
           textEl.textContent = `${collectorTxt} | ${corrTxt} | Last event ${eventAgo} | Last alert ${alertAgo}`;
         }
 
-        // Strip turns red if there has been no correlation run for 60 seconds or Elasticsearch is unreachable
+        // Strip turns red only when Elasticsearch is unreachable or no scheduler tick happened in the last 60 seconds
         let isStale = false;
         if (health.elasticsearch_status !== "connected") {
           isStale = true;
-        } else if (health.last_correlation_at) {
-          const corrAge = (Date.now() - new Date(health.last_correlation_at).getTime()) / 1000;
-          if (corrAge > 60) isStale = true;
-        } else if ((Date.now() - pageOpenTimeMs) / 1000 > 60) {
-          isStale = true;
+        } else {
+          const tickTime = health.last_tick_at || health.last_correlation_at;
+          if (tickTime) {
+            const tickAge = (Date.now() - new Date(tickTime).getTime()) / 1000;
+            if (tickAge > 60) isStale = true;
+          } else if ((Date.now() - pageOpenTimeMs) / 1000 > 60) {
+            isStale = true;
+          }
         }
 
         if (strip) {
@@ -918,7 +939,8 @@
       const toast = document.createElement("div");
       toast.className = `toast toast-${sev}`;
 
-      const raisedAt = (alert.created_at || alert.first_seen || "").slice(11, 19) || "Just now";
+      const rawTime = alert.created_at || alert.first_seen || "";
+      const toastFmt = formatDateTimeWithTz(rawTime);
       toast.innerHTML = `
         <div class="toast-body">
           <div class="toast-header">
@@ -928,7 +950,7 @@
           <div class="toast-meta">
             <span>${alert.user || 'N/A'} @ ${alert.host || 'N/A'}</span> &bull;
             <span>${alert.src_ip || ''}</span> &bull;
-            <span>${raisedAt}</span>
+            <span title="UTC: ${toastFmt.utc}">${toastFmt.local}</span>
           </div>
         </div>
         <button type="button" class="toast-close" title="Close">&times;</button>
@@ -1033,7 +1055,12 @@
             };
             lastGoodData = emptyData;
             renderDashboard(emptyData);
-            document.getElementById("update-timestamp").textContent = "Last updated: " + new Date().toLocaleTimeString();
+            const emptyFmt = formatDateTimeWithTz(new Date());
+            const emptyEl = document.getElementById("update-timestamp");
+            if (emptyEl) {
+              emptyEl.textContent = "Last updated: " + emptyFmt.local;
+              emptyEl.title = "UTC: " + emptyFmt.utc;
+            }
             return;
           }
           console.warn("Dashboard data request failed with status " + dashResp.status + "; keeping last good data.");
@@ -1045,7 +1072,12 @@
         processAlertNotifications(data.recent_alerts);
         renderDashboard(data);
         const now = new Date();
-        document.getElementById("update-timestamp").textContent = "Last updated: " + now.toLocaleTimeString();
+        const nowFmt = formatDateTimeWithTz(now);
+        const updateEl = document.getElementById("update-timestamp");
+        if (updateEl) {
+          updateEl.textContent = "Last updated: " + nowFmt.local;
+          updateEl.title = "UTC: " + nowFmt.utc;
+        }
       } catch (err) {
         console.warn("Dashboard data fetch error (keeping last good data):", err);
       } finally {
@@ -1301,7 +1333,8 @@
       sorted.slice(0, 8).forEach(a => {
         const sev = (a.severity || "medium").toLowerCase();
         const badgeClass = `badge-${sev}`;
-        const raisedAt = (a.created_at || a.first_seen || "").slice(11, 19) || "N/A";
+        const rawTime = a.created_at || a.first_seen || "";
+        const raisedFmt = formatDateTimeWithTz(rawTime);
 
         html += `
           <div class="alert-row">
@@ -1312,7 +1345,7 @@
             </div>
             <div class="alert-meta">
               <span>${a.src_ip || ''}</span>
-              <span title="Raised at: ${a.created_at || a.first_seen || ''}">Raised: ${raisedAt}</span>
+              <span title="UTC: ${raisedFmt.utc}">Raised: ${raisedFmt.local}</span>
             </div>
           </div>`;
       });

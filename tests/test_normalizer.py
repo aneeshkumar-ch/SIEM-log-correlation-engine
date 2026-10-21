@@ -198,3 +198,30 @@ def test_network_firewall_source_and_tagging():
     assert ev["severity"] == "medium"
     assert "public" in ev["ip_tags"]
     assert "external" in ev["ip_tags"]
+
+
+def test_sample_log_generator_timestamps_within_last_24_hours(tmp_path):
+    """Verifies that all generated sample logs use timestamps within the last 24 hours."""
+    from datetime import datetime, timezone, timedelta
+    import sample_log_generator
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=24)
+    files = sample_log_generator.generate_sample_logs(output_dir=tmp_path)
+
+    for stype, fpath in [("windows_sysmon", files["windows"]),
+                         ("linux_auditd", files["linux"]),
+                         ("network_firewall", files["network"])]:
+        with open(fpath, "r", encoding="utf-8") as f:
+            events, skipped = normalizer.normalize_content(f.read(), stype)
+            assert len(skipped) == 0, f"Expected 0 skipped lines in {stype}, got {skipped}"
+            assert len(events) > 0, f"Expected events in {stype}"
+            for ev in events:
+                src = ev["_source"]
+                ts = src.get("timestamp") or src.get("@timestamp")
+                assert ts is not None, f"Missing timestamp in normalized event: {src}"
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                assert cutoff <= dt <= (now + timedelta(minutes=5)), (
+                    f"Generated timestamp {dt} for {stype} is not within the last 24 hours (cutoff: {cutoff})"
+                )
+

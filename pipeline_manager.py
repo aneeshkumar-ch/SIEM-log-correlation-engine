@@ -35,6 +35,7 @@ class PipelineManager:
         self.last_event_ingested_at: Optional[str] = None
         self.last_correlation_at: Optional[str] = None
         self.last_alert_raised_at: Optional[str] = None
+        self.last_tick_at: Optional[str] = None
         self.new_events_since_last_run: bool = False
         self._lock: Optional[asyncio.Lock] = None
         self._stop_event: Optional[asyncio.Event] = None
@@ -85,16 +86,21 @@ class PipelineManager:
 
     def record_correlation_run(self, alerts: List[Dict[str, Any]]):
         """Record a correlation cycle timestamp and update alert raised timestamp if new alerts exist."""
-        self.last_correlation_at = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        self.last_correlation_at = now_iso
+        self.last_tick_at = now_iso
         self.new_events_since_last_run = False
         if alerts:
-            self.last_alert_raised_at = datetime.now(timezone.utc).isoformat()
+            self.last_alert_raised_at = now_iso
             self._dispatch_webhooks_for_critical_alerts(alerts)
 
     def reset_state(self):
         """Reset state tracking when pipeline data is cleared."""
+        now_iso = datetime.now(timezone.utc).isoformat()
         self.last_event_ingested_at = None
         self.last_alert_raised_at = None
+        self.last_tick_at = now_iso
+        self.last_correlation_at = now_iso
         self.new_events_since_last_run = False
 
     def _dispatch_webhooks_for_critical_alerts(self, alerts: List[Dict[str, Any]]):
@@ -161,6 +167,7 @@ class PipelineManager:
             "last_event_ingested_at": self.last_event_ingested_at,
             "last_correlation_at": self.last_correlation_at,
             "last_alert_raised_at": self.last_alert_raised_at,
+            "last_tick_at": self.last_tick_at,
             "elasticsearch_status": es_status,
             "events_count": events_cnt,
             "alerts_count": alerts_cnt
@@ -209,6 +216,12 @@ class PipelineManager:
                 except asyncio.TimeoutError:
                     pass
 
+                # Update last_correlation_at and last_tick_at on EVERY scheduler cycle,
+                # including cycles that are skipped because nothing is new
+                now_iso = datetime.now(timezone.utc).isoformat()
+                self.last_tick_at = now_iso
+                self.last_correlation_at = now_iso
+
                 if not self.new_events_since_last_run:
                     # Skip cycle if nothing new was ingested since last run
                     continue
@@ -256,6 +269,11 @@ class PipelineManager:
         self._stop_event = asyncio.Event()
         self._lock = asyncio.Lock()
         self.initialize_timestamps_from_es()
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        self.last_tick_at = now_iso
+        if not self.last_correlation_at:
+            self.last_correlation_at = now_iso
 
         if config.ENABLE_COLLECTOR:
             self._collector_task = asyncio.create_task(self._collector_watcher_loop())

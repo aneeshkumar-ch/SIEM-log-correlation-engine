@@ -35,6 +35,7 @@ def test_pipeline_health_endpoint():
     assert "correlation_interval_seconds" in data
     assert "last_event_ingested_at" in data
     assert "last_correlation_at" in data
+    assert "last_tick_at" in data
     assert "last_alert_raised_at" in data
     assert "elasticsearch_status" in data
     assert "events_count" in data
@@ -180,3 +181,29 @@ def test_webhook_dispatched_for_critical_alerts(monkeypatch):
     assert len(dispatched) == 1
     assert "Successful Brute Force" in dispatched[0]
     assert "critical" in dispatched[0]
+
+
+def test_scheduler_cycle_updates_tick_and_correlation_when_skipped(monkeypatch):
+    mgr = PipelineManager()
+    mgr.new_events_since_last_run = False
+    mgr.last_tick_at = "2020-01-01T00:00:00+00:00"
+    mgr.last_correlation_at = "2020-01-01T00:00:00+00:00"
+
+    async def _run():
+        mgr._stop_event = asyncio.Event()
+
+        async def stop_soon():
+            await asyncio.sleep(0.05)
+            mgr._stop_event.set()
+
+        monkeypatch.setattr(config, "CORRELATION_INTERVAL_SECONDS", 0.01)
+        asyncio.create_task(stop_soon())
+        await mgr._correlation_scheduler_loop()
+
+    asyncio.run(_run())
+
+    assert mgr.last_tick_at != "2020-01-01T00:00:00+00:00"
+    assert mgr.last_correlation_at != "2020-01-01T00:00:00+00:00"
+    health = mgr.get_health()
+    assert "last_tick_at" in health
+    assert health["last_tick_at"] == mgr.last_tick_at
