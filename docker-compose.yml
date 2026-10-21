@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: aneesh-siem-engine
+    container_name: bcssl-siem-engine
     restart: unless-stopped
     network_mode: host
     environment:
