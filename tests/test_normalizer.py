@@ -221,7 +221,11 @@ def test_sample_log_generator_timestamps_within_last_24_hours(tmp_path):
                 ts = src.get("timestamp") or src.get("@timestamp")
                 assert ts is not None, f"Missing timestamp in normalized event: {src}"
                 dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-                assert cutoff <= dt <= (now + timedelta(minutes=5)), (
-                    f"Generated timestamp {dt} for {stype} is not within the last 24 hours (cutoff: {cutoff})"
+                now_check = datetime.now(timezone.utc)
+                assert dt <= (now_check + timedelta(seconds=1)), (
+                    f"Generated timestamp {dt} for {stype} is in the future relative to {now_check}!"
+                )
+                assert dt >= cutoff, (
+                    f"Generated timestamp {dt} for {stype} is older than 24 hours (cutoff: {cutoff})"
                 )
 
