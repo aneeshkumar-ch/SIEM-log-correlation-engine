@@ -14,6 +14,9 @@ from fastapi.templating import Jinja2Templates
 from starlette.responses import StreamingResponse
 from starlette.background import BackgroundTask
 
+import re
+import posixpath
+import urllib.parse
 import config
 import normalizer
 import correlate
@@ -558,8 +561,95 @@ async def open_kibana_subpath(request: Request, subpath: str):
     clean_sub = subpath.strip("/")
     if not clean_sub:
         return RedirectResponse("/open/soc")
+    if not is_kibana_path_allowed(request.method, clean_sub):
+        return Response(content="Forbidden", status_code=403, media_type="text/plain")
     query_str = f"?{request.url.query}" if request.url.query else ""
     return RedirectResponse(f"/{clean_sub}{query_str}")
+
+
+# -------------------------------------------------------------------------
+# Kibana Reverse Proxy Security & Allow-list Filter
+# Allows only paths required by the 3 dashboards and discover search.
+# Blocks admin/console/dev-tools/management and all modification attempts (PUT/DELETE/PATCH).
+# -------------------------------------------------------------------------
+STATIC_ASSETS_RE = re.compile(r"^/([0-9a-fA-F]{10,40}/)?(bundles|ui|built_assets|node_modules)/")
+
+ALLOWED_GET_EXACT = {
+    "/bootstrap.js",
+    "/api/banners/info",
+    "/api/licensing/info",
+    "/api/saved_objects_tagging/tags",
+    "/api/status",
+    "/internal/data_views/fields",
+    "/internal/data_views/has_data_views",
+    "/internal/data_views/default",
+    "/internal/saved_query/_count",
+    "/internal/security/me",
+    "/internal/security/session",
+    "/internal/security/security_checkup/state",
+    "/internal/spaces/_active_space",
+    "/internal/telemetry/config",
+    "/internal/uptime/index_status",
+}
+
+ALLOWED_GET_PREFIXES = (
+    "/translations",
+    "/app/dashboards",
+    "/app/discover",
+)
+
+ALLOWED_POST_EXACT = {
+    "/internal/bsearch",
+    "/api/bsearch",
+    "/api/core/capabilities",
+    "/api/content_management/rpc/get",
+    "/api/content_management/rpc/search",
+    "/internal/data_views/_fields_for_wildcard",
+    "/internal/licensing/feature_usage/register",
+}
+
+BLOCKED_PREFIXES = (
+    "/app/dev_tools",
+    "/app/management",
+    "/app/saved_objects",
+    "/internal/console",
+    "/api/console",
+)
+
+
+def is_kibana_path_allowed(method: str, path: str) -> bool:
+    """Evaluates whether an incoming HTTP request is permitted to be proxied to Kibana."""
+    m = (method or "").upper()
+    # 1. Allow only safe query / read methods
+    if m not in ("GET", "POST", "HEAD"):
+        return False
+
+    raw_path = "/" + path.lstrip("/")
+    norm_path = "/" + posixpath.normpath(urllib.parse.unquote(raw_path)).lstrip("/")
+
+    # 2. Explicitly blocked admin / console / management endpoints
+    for blocked in BLOCKED_PREFIXES:
+        if norm_path == blocked or norm_path.startswith(blocked + "/") or norm_path.startswith(blocked + "#"):
+            return False
+
+    # 3. GET/HEAD method allow-list
+    if m in ("GET", "HEAD"):
+        if STATIC_ASSETS_RE.match(norm_path):
+            return True
+        if norm_path in ALLOWED_GET_EXACT:
+            return True
+        for prefix in ALLOWED_GET_PREFIXES:
+            if norm_path == prefix or norm_path.startswith(prefix + "/") or norm_path.startswith(prefix + "#"):
+                return True
+        return False
+
+    # 4. POST method allow-list (restricted strictly to necessary panel query endpoints)
+    if m == "POST":
+        if norm_path in ALLOWED_POST_EXACT:
+            return True
+        return False
+
+    return False
 
 
 HOP_BY_HOP_HEADERS = {
@@ -569,6 +659,9 @@ HOP_BY_HOP_HEADERS = {
 
 
 async def forward_to_kibana(request: Request, path: str):
+    if not is_kibana_path_allowed(request.method, path):
+        return Response(content="Forbidden", status_code=403, media_type="text/plain")
+
     target_path = "/" + path
     if request.url.query:
         target_path += "?" + request.url.query

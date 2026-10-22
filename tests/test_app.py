@@ -195,3 +195,63 @@ def test_open_routes():
     res_events = client.get("/open/events", follow_redirects=False)
     assert res_events.status_code in (302, 307)
     assert "events-search" in res_events.headers["location"]
+
+
+def test_kibana_proxy_allowlist_blocks_admin_and_dev_tools():
+    client = TestClient(app)
+    blocked_paths = [
+        "/app/dev_tools",
+        "/app/dev_tools#/console",
+        "/app/management",
+        "/app/management/kibana/objects",
+        "/app/saved_objects",
+        "/internal/console",
+        "/api/console",
+        "/api/console/proxy",
+        "/kibana/app/dev_tools",
+        "/kibana/app/management",
+    ]
+    for p in blocked_paths:
+        res = client.get(p)
+        assert res.status_code == 403, f"Expected 403 for {p}, got {res.status_code}"
+
+
+def test_kibana_proxy_allowlist_blocks_mutating_methods():
+    client = TestClient(app)
+    # PUT, DELETE, PATCH must return 403
+    for method in ["delete", "put", "patch"]:
+        caller = getattr(client, method)
+        res = caller("/api/saved_objects/index-pattern/123")
+        assert res.status_code == 403, f"Expected 403 for {method.upper()} on saved_objects, got {res.status_code}"
+
+    # POST to arbitrary unlisted API must return 403
+    res_post = client.post("/api/unauthorized/write", json={"test": 1})
+    assert res_post.status_code == 403
+
+
+def test_kibana_proxy_allowlist_permits_safe_paths():
+    from app import is_kibana_path_allowed
+    # Static assets
+    assert is_kibana_path_allowed("GET", "/2e3a5cd43e83/bundles/core/core.entry.js")
+    assert is_kibana_path_allowed("GET", "/2e3a5cd43e83/ui/legacy_light_theme.min.css")
+    assert is_kibana_path_allowed("GET", "/bootstrap.js")
+    assert is_kibana_path_allowed("GET", "/translations/en.json")
+
+    # App views
+    assert is_kibana_path_allowed("GET", "/app/dashboards")
+    assert is_kibana_path_allowed("GET", "/app/dashboards#/view/soc-triage-board-dashboard")
+    assert is_kibana_path_allowed("GET", "/app/discover")
+    assert is_kibana_path_allowed("GET", "/app/discover#/view/events-search")
+
+    # Safe GET APIs
+    assert is_kibana_path_allowed("GET", "/api/licensing/info")
+    assert is_kibana_path_allowed("GET", "/internal/security/me")
+    assert is_kibana_path_allowed("GET", "/internal/data_views/fields")
+    assert is_kibana_path_allowed("GET", "/internal/spaces/_active_space")
+
+    # Safe POST APIs
+    assert is_kibana_path_allowed("POST", "/internal/bsearch")
+    assert is_kibana_path_allowed("POST", "/api/core/capabilities")
+    assert is_kibana_path_allowed("POST", "/api/content_management/rpc/get")
+    assert is_kibana_path_allowed("POST", "/api/content_management/rpc/search")
+    assert is_kibana_path_allowed("POST", "/internal/data_views/_fields_for_wildcard")
