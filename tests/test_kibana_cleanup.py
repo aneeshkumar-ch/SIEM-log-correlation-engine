@@ -148,3 +148,14 @@ class TestKibanaCleanupSafety:
             col = objects_by_id[obj_id]["attributes"]["state"]["datasourceStates"]["formBased"]["layers"]["layer_1"]["columns"]["col_metric"]
             assert col.get("label") == expected_label
             assert col.get("customLabel") is True, f"{obj_id} must set customLabel=True"
+
+        soc_dash = objects_by_id["soc-triage-board-dashboard"]
+        panels = json.loads(soc_dash["attributes"]["panelsJSON"])
+        hidden_indices = {"panel-1", "panel-2", "panel-3", "panel-4"}
+        for p in panels:
+            pid = p["panelIndex"]
+            hide_flag = p.get("embeddableConfig", {}).get("hidePanelTitles", False)
+            if pid in hidden_indices:
+                assert hide_flag is True, f"{pid} must hide panel title bar"
+            else:
+                assert hide_flag is False, f"{pid} should keep panel title bar"

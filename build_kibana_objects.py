@@ -1141,10 +1141,10 @@ objects.append({
         "optionsJSON": json.dumps({"useMargins": True, "hidePanelTitles": False}),
         "panelsJSON": json.dumps([
             # Row 1: 4 Metric cards (y: 0, h: 6, w: 12 each)
-            {"version": "8.13.0", "panelIndex": "panel-1", "gridData": {"x": 0, "y": 0, "w": 12, "h": 6, "i": "panel-1"}, "panelRefName": "panel_panel-1"},
-            {"version": "8.13.0", "panelIndex": "panel-2", "gridData": {"x": 12, "y": 0, "w": 12, "h": 6, "i": "panel-2"}, "panelRefName": "panel_panel-2"},
-            {"version": "8.13.0", "panelIndex": "panel-3", "gridData": {"x": 24, "y": 0, "w": 12, "h": 6, "i": "panel-3"}, "panelRefName": "panel_panel-3"},
-            {"version": "8.13.0", "panelIndex": "panel-4", "gridData": {"x": 36, "y": 0, "w": 12, "h": 6, "i": "panel-4"}, "panelRefName": "panel_panel-4"},
+            {"version": "8.13.0", "panelIndex": "panel-1", "gridData": {"x": 0, "y": 0, "w": 12, "h": 6, "i": "panel-1"}, "panelRefName": "panel_panel-1", "embeddableConfig": {"hidePanelTitles": True}},
+            {"version": "8.13.0", "panelIndex": "panel-2", "gridData": {"x": 12, "y": 0, "w": 12, "h": 6, "i": "panel-2"}, "panelRefName": "panel_panel-2", "embeddableConfig": {"hidePanelTitles": True}},
+            {"version": "8.13.0", "panelIndex": "panel-3", "gridData": {"x": 24, "y": 0, "w": 12, "h": 6, "i": "panel-3"}, "panelRefName": "panel_panel-3", "embeddableConfig": {"hidePanelTitles": True}},
+            {"version": "8.13.0", "panelIndex": "panel-4", "gridData": {"x": 36, "y": 0, "w": 12, "h": 6, "i": "panel-4"}, "panelRefName": "panel_panel-4", "embeddableConfig": {"hidePanelTitles": True}},
 
             # Row 2: Row of three (y: 6, h: 12, w: 16 each)
             {"version": "8.13.0", "panelIndex": "panel-5", "gridData": {"x": 0, "y": 6, "w": 16, "h": 12, "i": "panel-5"}, "panelRefName": "panel_panel-5"},
