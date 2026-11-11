@@ -38,6 +38,7 @@ class TestKibanaCleanupSafety:
             "metric-critical-alerts",
             "metric-high-alerts",
             "metric-medium-alerts",
+            "metric-low-alerts",
             "alerts-by-severity",
             "event-categories-pie",
             "top-hosts-by-events",
@@ -135,6 +136,7 @@ class TestKibanaCleanupSafety:
             "metric-critical-alerts": "Critical alerts",
             "metric-high-alerts": "High alerts",
             "metric-medium-alerts": "Medium alerts",
+            "metric-low-alerts": "Low alerts",
         }
         objects_by_id = {}
         with open(NDJSON_PATH, "r", encoding="utf-8") as f:
@@ -149,9 +151,13 @@ class TestKibanaCleanupSafety:
             assert col.get("label") == expected_label
             assert col.get("customLabel") is True, f"{obj_id} must set customLabel=True"
 
+        low_obj = objects_by_id["metric-low-alerts"]
+        assert low_obj["attributes"]["state"]["query"]["query"] == 'severity: "low"'
+        assert low_obj["attributes"]["state"]["visualization"]["color"] == "#2563EB"
+
         soc_dash = objects_by_id["soc-triage-board-dashboard"]
         panels = json.loads(soc_dash["attributes"]["panelsJSON"])
-        hidden_indices = {"panel-1", "panel-2", "panel-3", "panel-4"}
+        hidden_indices = {"panel-1", "panel-2", "panel-3", "panel-4", "panel-12"}
         for p in panels:
             pid = p["panelIndex"]
             hide_flag = p.get("embeddableConfig", {}).get("hidePanelTitles", False)

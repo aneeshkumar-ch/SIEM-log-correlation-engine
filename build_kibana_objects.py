@@ -49,6 +49,7 @@ COUNT_CARD_HIGH_BG = "#E7664C"
 COUNT_CARD_HIGH_TEXT = "#4A1B0C"
 COUNT_CARD_MEDIUM_BG = "#FEC514"
 COUNT_CARD_MEDIUM_TEXT = "#412402"
+COUNT_CARD_LOW_BG = "#2563EB"
 
 # Severity series everywhere
 SEVERITY_CRITICAL = "#8E0000"
@@ -379,6 +380,16 @@ objects.append(make_metric_object(
     make_count_col("Medium alerts", custom_label=True),
     query_str='severity: "medium"',
     color_code=SEVERITY_MEDIUM
+))
+
+# Card: Low #2563EB (blue)
+objects.append(make_metric_object(
+    "metric-low-alerts",
+    "Low alerts",
+    "Total low severity alerts for informational review",
+    make_count_col("Low alerts", custom_label=True),
+    query_str='severity: "low"',
+    color_code=COUNT_CARD_LOW_BG
 ))
 
 # Additional metrics for Alerts Dashboard
@@ -1140,11 +1151,12 @@ objects.append({
         },
         "optionsJSON": json.dumps({"useMargins": True, "hidePanelTitles": False}),
         "panelsJSON": json.dumps([
-            # Row 1: 4 Metric cards (y: 0, h: 6, w: 12 each)
+            # Row 1: 5 Metric cards (y: 0, h: 6, w: 12 + 4*9 = 48)
             {"version": "8.13.0", "panelIndex": "panel-1", "gridData": {"x": 0, "y": 0, "w": 12, "h": 6, "i": "panel-1"}, "panelRefName": "panel_panel-1", "embeddableConfig": {"hidePanelTitles": True}},
-            {"version": "8.13.0", "panelIndex": "panel-2", "gridData": {"x": 12, "y": 0, "w": 12, "h": 6, "i": "panel-2"}, "panelRefName": "panel_panel-2", "embeddableConfig": {"hidePanelTitles": True}},
-            {"version": "8.13.0", "panelIndex": "panel-3", "gridData": {"x": 24, "y": 0, "w": 12, "h": 6, "i": "panel-3"}, "panelRefName": "panel_panel-3", "embeddableConfig": {"hidePanelTitles": True}},
-            {"version": "8.13.0", "panelIndex": "panel-4", "gridData": {"x": 36, "y": 0, "w": 12, "h": 6, "i": "panel-4"}, "panelRefName": "panel_panel-4", "embeddableConfig": {"hidePanelTitles": True}},
+            {"version": "8.13.0", "panelIndex": "panel-2", "gridData": {"x": 12, "y": 0, "w": 9, "h": 6, "i": "panel-2"}, "panelRefName": "panel_panel-2", "embeddableConfig": {"hidePanelTitles": True}},
+            {"version": "8.13.0", "panelIndex": "panel-3", "gridData": {"x": 21, "y": 0, "w": 9, "h": 6, "i": "panel-3"}, "panelRefName": "panel_panel-3", "embeddableConfig": {"hidePanelTitles": True}},
+            {"version": "8.13.0", "panelIndex": "panel-4", "gridData": {"x": 30, "y": 0, "w": 9, "h": 6, "i": "panel-4"}, "panelRefName": "panel_panel-4", "embeddableConfig": {"hidePanelTitles": True}},
+            {"version": "8.13.0", "panelIndex": "panel-12", "gridData": {"x": 39, "y": 0, "w": 9, "h": 6, "i": "panel-12"}, "panelRefName": "panel_panel-12", "embeddableConfig": {"hidePanelTitles": True}},
 
             # Row 2: Row of three (y: 6, h: 12, w: 16 each)
             {"version": "8.13.0", "panelIndex": "panel-5", "gridData": {"x": 0, "y": 6, "w": 16, "h": 12, "i": "panel-5"}, "panelRefName": "panel_panel-5"},
@@ -1174,7 +1186,8 @@ objects.append({
         {"id": "recent-alerts-table", "name": "panel_panel-8", "type": "lens"},
         {"id": "events-by-source-donut", "name": "panel_panel-9", "type": "lens"},
         {"id": "top-source-ips", "name": "panel_panel-10", "type": "lens"},
-        {"id": "suspicious-execution-hosts", "name": "panel_panel-11", "type": "lens"}
+        {"id": "suspicious-execution-hosts", "name": "panel_panel-11", "type": "lens"},
+        {"id": "metric-low-alerts", "name": "panel_panel-12", "type": "lens"}
     ]
 })
 

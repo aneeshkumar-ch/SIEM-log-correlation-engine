@@ -66,7 +66,7 @@ def import_dashboard() -> bool:
 
 def verify_saved_objects() -> bool:
     print("\n" + "=" * 70)
-    print("  KIBANA SAVED OBJECTS VERIFICATION REPORT (25 Saved Objects)")
+    print("  KIBANA SAVED OBJECTS VERIFICATION REPORT (26 Saved Objects)")
     print("=" * 70)
 
     objects_to_check: List[Tuple[str, str, str]] = [
@@ -76,6 +76,7 @@ def verify_saved_objects() -> bool:
         ("lens", "metric-critical-alerts", "Lens Metric: Critical Alerts"),
         ("lens", "metric-high-alerts", "Lens Metric: High Alerts"),
         ("lens", "metric-medium-alerts", "Lens Metric: Medium Alerts"),
+        ("lens", "metric-low-alerts", "Lens Metric: Low Alerts"),
         ("lens", "metric-unique-source-ips", "Lens Metric: Unique Source IPs"),
         ("lens", "metric-affected-hosts", "Lens Metric: Affected Hosts"),
         ("lens", "alerts-by-severity", "Lens: Alerts by Severity Over Time"),
@@ -117,7 +118,7 @@ def verify_saved_objects() -> bool:
             all_ok = False
 
     print("\n" + "=" * 70)
-    print(f"  Saved objects verification status: {'ALL 25 OK' if all_ok else 'SOME FAILED'}")
+    print(f"  Saved objects verification status: {'ALL 26 OK' if all_ok else 'SOME FAILED'}")
     print(f"  Kibana Dashboards are live at:")
     print(f"  - SOC Triage Board  : {KIBANA_URL}/app/dashboards#/view/soc-triage-board-dashboard")
     print(f"  - Alerts Dashboard  : {KIBANA_URL}/app/dashboards#/view/alerts-dashboard")
