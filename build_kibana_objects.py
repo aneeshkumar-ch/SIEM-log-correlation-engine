@@ -71,8 +71,8 @@ CHART_PALETTE = [
 TAG_COLOR = "#2B2F7E"  # navy, white text
 
 
-def make_count_col(label: str = "Count"):
-    return {
+def make_count_col(label: str = "Count", custom_label: bool = False):
+    col = {
         "label": label,
         "dataType": "number",
         "operationType": "count",
@@ -89,6 +89,9 @@ def make_count_col(label: str = "Count"):
             }
         }
     }
+    if custom_label:
+        col["customLabel"] = True
+    return col
 
 
 def make_cardinality_col(source_field: str, label: str):
@@ -343,7 +346,7 @@ objects.append(make_metric_object(
     "metric-total-alerts",
     "Total alerts",
     "Total security alerts generated across all detection rules",
-    make_count_col("Total alerts"),
+    make_count_col("Total alerts", custom_label=True),
     query_str="",
     color_code=COUNT_CARD_TOTAL_TEXT
 ))
@@ -353,7 +356,7 @@ objects.append(make_metric_object(
     "metric-critical-alerts",
     "Critical alerts",
     "Total critical severity alerts requiring immediate escalation",
-    make_count_col("Critical alerts"),
+    make_count_col("Critical alerts", custom_label=True),
     query_str='severity: "critical"',
     color_code=SEVERITY_CRITICAL
 ))
@@ -363,7 +366,7 @@ objects.append(make_metric_object(
     "metric-high-alerts",
     "High alerts",
     "Total high severity alerts requiring active analyst investigation",
-    make_count_col("High alerts"),
+    make_count_col("High alerts", custom_label=True),
     query_str='severity: "high"',
     color_code=SEVERITY_HIGH
 ))
@@ -373,7 +376,7 @@ objects.append(make_metric_object(
     "metric-medium-alerts",
     "Medium alerts",
     "Total medium severity alerts requiring review",
-    make_count_col("Medium alerts"),
+    make_count_col("Medium alerts", custom_label=True),
     query_str='severity: "medium"',
     color_code=SEVERITY_MEDIUM
 ))

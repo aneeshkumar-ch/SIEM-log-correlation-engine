@@ -127,3 +127,24 @@ class TestKibanaCleanupSafety:
                 assert ref_id not in real_ids, (
                     f"Temporary object {obj['id']} references real object ID: {ref_id}"
                 )
+
+    def test_alert_metric_cards_use_custom_labels(self):
+        """Asserts the 4 alert metric cards specify customLabel=True so Kibana shows alert labels instead of 'Count of records'."""
+        expected_labels = {
+            "metric-total-alerts": "Total alerts",
+            "metric-critical-alerts": "Critical alerts",
+            "metric-high-alerts": "High alerts",
+            "metric-medium-alerts": "Medium alerts",
+        }
+        objects_by_id = {}
+        with open(NDJSON_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    obj = json.loads(line)
+                    objects_by_id[obj["id"]] = obj
+
+        for obj_id, expected_label in expected_labels.items():
+            assert obj_id in objects_by_id, f"Missing {obj_id} in {NDJSON_PATH}"
+            col = objects_by_id[obj_id]["attributes"]["state"]["datasourceStates"]["formBased"]["layers"]["layer_1"]["columns"]["col_metric"]
+            assert col.get("label") == expected_label
+            assert col.get("customLabel") is True, f"{obj_id} must set customLabel=True"
