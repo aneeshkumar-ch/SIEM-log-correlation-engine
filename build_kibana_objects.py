@@ -55,7 +55,7 @@ COUNT_CARD_LOW_BG = "#2563EB"
 SEVERITY_CRITICAL = "#8E0000"
 SEVERITY_HIGH = "#E7664C"
 SEVERITY_MEDIUM = "#FEC514"
-SEVERITY_LOW = "#54B399"
+SEVERITY_LOW = "#2563EB"
 
 # Chart palette (reds with lavender accents)
 CHART_PALETTE = [
@@ -431,7 +431,21 @@ objects.append({
                             "columnOrder": ["col_date", "col_severity", "col_count"],
                             "columns": {
                                 "col_date": make_date_histogram_col("first_seen", "Timestamp"),
-                                "col_severity": make_terms_col("severity", "Severity", size=5, alphabetical=True),
+                                "col_severity": {
+                                    "label": "Severity",
+                                    "dataType": "string",
+                                    "operationType": "filters",
+                                    "scale": "ordinal",
+                                    "isBucketed": True,
+                                    "params": {
+                                        "filters": [
+                                            {"input": {"language": "kuery", "query": 'severity: "critical"'}, "label": "critical"},
+                                            {"input": {"language": "kuery", "query": 'severity: "high"'}, "label": "high"},
+                                            {"input": {"language": "kuery", "query": 'severity: "medium"'}, "label": "medium"},
+                                            {"input": {"language": "kuery", "query": 'severity: "low"'}, "label": "low"}
+                                        ]
+                                    }
+                                },
                                 "col_count": make_count_col("Alert Count")
                             },
                             "incompleteColumns": {}

@@ -155,6 +155,15 @@ class TestKibanaCleanupSafety:
         assert low_obj["attributes"]["state"]["query"]["query"] == 'severity: "low"'
         assert low_obj["attributes"]["state"]["visualization"]["color"] == "#2563EB"
 
+        sev_chart = objects_by_id["alerts-by-severity"]
+        sev_col = sev_chart["attributes"]["state"]["datasourceStates"]["formBased"]["layers"]["layer_1"]["columns"]["col_severity"]
+        assert sev_col["operationType"] == "filters"
+        sev_labels = [f["label"] for f in sev_col["params"]["filters"]]
+        assert sev_labels == ["critical", "high", "medium", "low"]
+        sev_colors = sev_chart["attributes"]["state"]["visualization"]["layers"][0]["colorMapping"]["assignments"]
+        low_color = next(a["color"]["colorCode"] for a in sev_colors if "low" in a["rule"]["values"])
+        assert low_color == "#2563EB"
+
         soc_dash = objects_by_id["soc-triage-board-dashboard"]
         panels = json.loads(soc_dash["attributes"]["panelsJSON"])
         hidden_indices = {"panel-1", "panel-2", "panel-3", "panel-4", "panel-12"}
